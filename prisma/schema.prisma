@@ -1,0 +1,226 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model FoodItem {
+  id              String  @id @default(cuid())
+  name            String
+  baseQuantity    String
+  baseWeightGrams Float
+  calories        Float
+  protein         Float
+  carbs           Float   @default(0)
+  fat             Float   @default(0)
+  price           Float
+  barcode         String? @unique
+}
+
+model MealTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  mealType  String?
+  items     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model MealEntry {
+  id            String   @id @default(cuid())
+  userId        String
+  estimateId    String?
+  date          DateTime
+  mealType      String
+  items         Json
+  totalCalories Float
+  totalProtein  Float
+  totalCarbs    Float    @default(0)
+  totalFat      Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id])
+  estimates     MealEstimate[]
+
+  @@index([userId, date])
+  @@index([userId, createdAt])
+}
+
+model MealEstimate {
+  id               String   @id @default(cuid())
+  userId           String
+  calories         Float
+  protein          Float
+  carbs            Float
+  fat              Float
+  confidence       Float    @default(0.6)
+  status           String   @default("draft")
+  source           String   @default("camera")
+  imageName        String?
+  imageMimeType    String?
+  linkedMealEntryId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedMealEntry  MealEntry? @relation(fields: [linkedMealEntryId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+model Workout {
+  id        String          @id @default(cuid())
+  userId    String
+  date      DateTime
+  completed Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  exercises ExerciseEntry[]
+  user      User            @relation(fields: [userId], references: [id])
+
+  @@index([userId, date])
+}
+
+model ExerciseEntry {
+  id        String  @id @default(cuid())
+  workoutId String
+  name      String
+  sets      Int
+  reps      Int
+  weight    Float
+  workout   Workout @relation(fields: [workoutId], references: [id])
+}
+
+model WeightLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  weight    Float
+  waistCm   Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@index([userId, createdAt])
+}
+
+enum Plan {
+  free
+  pro
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  phone       String?      @unique
+  phoneVerified DateTime?
+  passwordHash String
+  emailVerified DateTime?
+  plan        Plan         @default(free)
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  subscriptionStatus   String?
+  subscriptionCurrentPeriodEnd DateTime?
+  createdAt   DateTime     @default(now())
+  mealEntries MealEntry[]
+  mealTemplates MealTemplate[]
+  mealEstimates MealEstimate[]
+  workouts    Workout[]
+  weightLogs  WeightLog[]
+  hydrationLogs HydrationLog[]
+  goalSetting GoalSetting?
+  coachThreads CoachThread[]
+  authTokens AuthToken[]
+  otpCodes OtpCode[]
+}
+
+model AuthToken {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([expiresAt])
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  userId    String?
+  phone     String
+  purpose   String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([phone, purpose, createdAt])
+  @@index([expiresAt])
+}
+
+model CoachThread {
+  id        String         @id @default(cuid())
+  userId    String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  CoachMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model CoachMessage {
+  id        String      @id @default(cuid())
+  threadId  String
+  role      String
+  content   String      @db.Text
+  createdAt DateTime    @default(now())
+  thread    CoachThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
+
+model GoalSetting {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  calorieTarget   Int      @default(1500)
+  proteinTarget   Int      @default(110)
+  carbTarget      Int      @default(180)
+  fatTarget       Int      @default(55)
+  waterTargetMl   Int      @default(2000)
+  reminderEnabled Boolean  @default(false)
+  reminderTime    String   @default("09:00")
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id])
+}
+
+model HydrationLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  totalMl   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, createdAt])
+}

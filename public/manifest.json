@@ -1,0 +1,23 @@
+{
+  "name": "FitTrack Pro",
+  "short_name": "FitTrack",
+  "description": "Meals, workouts, weight, and hydration",
+  "display": "standalone",
+  "background_color": "#F9FAFB",
+  "theme_color": "#2563EB",
+  "start_url": "/dashboard",
+  "icons": [
+    {
+      "src": "/icon",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/maskable-icon",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
