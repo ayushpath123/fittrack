@@ -256,7 +256,7 @@ export default function SettingsPage() {
               ) : null}
             </div>
             <p className="text-xs text-gray-500 dark:text-slate-500">
-              Pro unlocks AI meal estimates and the AI coach. Configure Stripe keys in production.
+              Pro unlocks AI meal estimates and the AI coach. Configure your billing keys in production.
             </p>
           </div>
         ) : (

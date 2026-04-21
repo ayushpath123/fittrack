@@ -131,6 +131,7 @@ model User {
   plan        Plan         @default(free)
   stripeCustomerId     String?   @unique
   stripeSubscriptionId String?   @unique
+  razorpaySubscriptionId String? @unique
   subscriptionStatus   String?
   subscriptionCurrentPeriodEnd DateTime?
   createdAt   DateTime     @default(now())

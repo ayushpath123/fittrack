@@ -6,6 +6,23 @@ import { useSession } from "next-auth/react";
 import { Check, ChevronLeft, Loader2, Sparkles } from "lucide-react";
 import { AppBrand } from "@/components/AppBrand";
 
+type RazorpayCheckoutOptions = {
+  key: string;
+  subscription_id: string;
+  name: string;
+  description: string;
+  image: string;
+  prefill: { name: string; email: string; contact: string };
+  notes: Record<string, string>;
+  theme: { color: string };
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+  }
+}
+
 export default function PricingPage() {
   const { status } = useSession();
   const [loading, setLoading] = useState(false);
@@ -25,6 +42,18 @@ export default function PricingPage() {
       .catch(() => setHasPro(false));
   }, []);
 
+  async function ensureRazorpayScript(): Promise<boolean> {
+    if (window.Razorpay) return true;
+    return await new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }
+
   async function checkout() {
     if (status === "unauthenticated") {
       return;
@@ -33,16 +62,41 @@ export default function PricingPage() {
     setError("");
     try {
       const res = await fetch("/api/billing/checkout", { method: "POST", credentials: "include" });
-      const data = (await res.json()) as { url?: string; error?: string };
+      const data = (await res.json()) as { checkout?: RazorpayCheckoutOptions; error?: string };
       if (res.status === 401) {
         setError("Session expired — sign in again to upgrade.");
         return;
       }
-      if (!res.ok || !data.url) {
-        setError(data.error ?? "Checkout unavailable. Set STRIPE_SECRET_KEY and STRIPE_PRICE_ID_PRO.");
+      if (!res.ok || !data.checkout) {
+        setError(data.error ?? "Checkout unavailable. Set RAZORPAY keys and plan ID.");
         return;
       }
-      window.location.href = data.url;
+      const scriptReady = await ensureRazorpayScript();
+      if (!scriptReady || !window.Razorpay) {
+        setError("Could not load Razorpay checkout.");
+        return;
+      }
+      const rzp = new window.Razorpay({
+        ...data.checkout,
+        handler: async (response: {
+          razorpay_payment_id?: string;
+          razorpay_subscription_id?: string;
+          razorpay_signature?: string;
+        }) => {
+          const verifyRes = await fetch("/api/billing/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(response),
+          });
+          if (!verifyRes.ok) {
+            setError("Payment completed, but verification failed. Contact support.");
+            return;
+          }
+          window.location.href = "/settings?billing=success#subscription";
+        },
+      });
+      rzp.open();
     } catch {
       setError("Network error.");
     } finally {
@@ -114,7 +168,7 @@ export default function PricingPage() {
 
           {guest ? (
             <div className="mt-6 space-y-3">
-              <p className="text-sm text-white/45">Create an account or sign in to subscribe with Stripe.</p>
+              <p className="text-sm text-white/45">Create an account or sign in to subscribe with Razorpay.</p>
               <Link
                 href="/login?callbackUrl=/pricing"
                 className="flex w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#BEFF47,#7E73F6)] py-3 text-sm font-semibold text-white"
@@ -137,7 +191,7 @@ export default function PricingPage() {
                 className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#BEFF47,#7E73F6)] py-3 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                {loading ? "Redirecting…" : hasPro ? "Current plan" : "Upgrade with Stripe"}
+                {loading ? "Opening checkout…" : hasPro ? "Current plan" : "Upgrade with Razorpay"}
               </button>
 
               {error ? <p className="mt-2 text-xs text-[#FF5C7A]">{error}</p> : null}
@@ -145,9 +199,9 @@ export default function PricingPage() {
           )}
 
           <p className="mt-4 text-[10px] leading-relaxed text-[var(--muted)]">
-            Configure <code className="text-[#B8E86A]">STRIPE_SECRET_KEY</code>,{" "}
-            <code className="text-[#B8E86A]">STRIPE_PRICE_ID_PRO</code>, <code className="text-[#B8E86A]">STRIPE_WEBHOOK_SECRET</code>,
-            and point your Stripe webhook to <code className="text-[#B8E86A]">/api/webhooks/stripe</code> (checkout + customer.subscription events).
+            Configure <code className="text-[#B8E86A]">RAZORPAY_KEY_ID</code>, <code className="text-[#B8E86A]">RAZORPAY_KEY_SECRET</code>,{" "}
+            <code className="text-[#B8E86A]">RAZORPAY_PLAN_ID</code>, <code className="text-[#B8E86A]">RAZORPAY_WEBHOOK_SECRET</code>,
+            and point the webhook to <code className="text-[#B8E86A]">/api/webhooks/razorpay</code>.
           </p>
         </div>
       </main>
