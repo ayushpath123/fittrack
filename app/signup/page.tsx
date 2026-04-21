@@ -27,6 +27,7 @@ function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const oauthCallbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const installUrl = `/install-app?next=${encodeURIComponent(oauthCallbackUrl)}`;
   const [oauthLoading, setOauthLoading] = useState<"google" | null>(null);
 
   const {
@@ -69,7 +70,7 @@ function SignupForm() {
   const handleGoogle = async () => {
     setOauthLoading("google");
     try {
-      await signIn("google", { callbackUrl: oauthCallbackUrl });
+      await signIn("google", { callbackUrl: installUrl });
     } catch {
       toast.error("Failed to start Google sign-in. Try again.");
       setOauthLoading(null);

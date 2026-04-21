@@ -32,6 +32,7 @@ export const config = {
     "/weekly/:path*",
     "/settings/:path*",
     "/verify-phone",
+    "/install-app",
     "/onboarding",
     "/api/meals/:path*",
     "/api/workout/:path*",
