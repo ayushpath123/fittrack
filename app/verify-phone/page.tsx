@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, Loader2, ShieldCheck } from "lucide-react";
 
 type BillingStatus = {
@@ -17,7 +17,7 @@ function toLocalIndianDigits(raw: string): string {
   return digits.slice(0, 10);
 }
 
-export default function VerifyPhonePage() {
+function VerifyPhonePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = useMemo(() => searchParams.get("callbackUrl") || "/pricing", [searchParams]);
@@ -168,5 +168,22 @@ export default function VerifyPhonePage() {
         {message ? <p className="text-xs text-emerald-400">{message}</p> : null}
       </div>
     </div>
+  );
+}
+
+function VerifyPhoneFallback() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center text-sm text-[var(--muted)]">
+      <Loader2 className="mr-2 animate-spin" size={16} />
+      Loading verification…
+    </div>
+  );
+}
+
+export default function VerifyPhonePage() {
+  return (
+    <Suspense fallback={<VerifyPhoneFallback />}>
+      <VerifyPhonePageContent />
+    </Suspense>
   );
 }

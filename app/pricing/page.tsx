@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, Loader2, Sparkles } from "lucide-react";
@@ -24,7 +24,7 @@ declare global {
   }
 }
 
-export default function PricingPage() {
+function PricingPageContent() {
   const { status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -243,5 +243,22 @@ export default function PricingPage() {
         <p>© {new Date().getFullYear()} FitTrack</p>
       </footer>
     </div>
+  );
+}
+
+function PricingPageFallback() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center text-sm text-[var(--muted)]">
+      <Loader2 className="mr-2 animate-spin" size={16} />
+      Loading pricing…
+    </div>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={<PricingPageFallback />}>
+      <PricingPageContent />
+    </Suspense>
   );
 }
