@@ -31,6 +31,7 @@ export const config = {
     "/analytics/:path*",
     "/weekly/:path*",
     "/settings/:path*",
+    "/verify-phone",
     "/onboarding",
     "/api/meals/:path*",
     "/api/workout/:path*",

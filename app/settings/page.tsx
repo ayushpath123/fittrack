@@ -9,6 +9,13 @@ const inputFieldClass =
   "w-full rounded-xl border border-white/12 bg-white/[0.05] px-3.5 py-2.5 text-sm text-[var(--white)] transition-all placeholder:text-[var(--hint)] focus:border-[#BEFF47]/40 focus:bg-white/[0.07] focus:outline-none focus:ring-2 focus:ring-[#BEFF47]/15";
 
 const labelClass = "mb-1 text-xs font-medium text-[var(--muted)]";
+const INDIA_PREFIX = "+91";
+
+function toLocalIndianDigits(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("91")) return digits.slice(2, 12);
+  return digits.slice(0, 10);
+}
 
 export default function SettingsPage() {
   const [calorieTarget, setCalorieTarget] = useState(1500);
@@ -32,8 +39,14 @@ export default function SettingsPage() {
     hasPro: boolean;
     subscriptionStatus: string | null;
     canManageBilling: boolean;
+    phone: string | null;
+    phoneVerified: boolean;
   } | null>(null);
   const [portalBusy, setPortalBusy] = useState(false);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [otpInput, setOtpInput] = useState("");
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/settings/goals", { credentials: "include" });
@@ -61,13 +74,24 @@ export default function SettingsPage() {
   useEffect(() => {
     void fetch("/api/billing/status", { credentials: "include" })
       .then((r) => r.json())
-      .then((d: { plan?: string; hasPro?: boolean; subscriptionStatus?: string | null; canManageBilling?: boolean }) => {
+      .then(
+        (d: {
+          plan?: string;
+          hasPro?: boolean;
+          subscriptionStatus?: string | null;
+          canManageBilling?: boolean;
+          phone?: string | null;
+          phoneVerified?: boolean;
+        }) => {
         setBilling({
           plan: d.plan ?? "free",
           hasPro: !!d.hasPro,
           subscriptionStatus: d.subscriptionStatus ?? null,
           canManageBilling: !!d.canManageBilling,
+          phone: d.phone ?? null,
+          phoneVerified: !!d.phoneVerified,
         });
+        setPhoneInput(toLocalIndianDigits(d.phone ?? ""));
       })
       .catch(() => setBilling(null));
   }, []);
@@ -145,6 +169,56 @@ export default function SettingsPage() {
       setMessage("Billing portal failed.");
     } finally {
       setPortalBusy(false);
+    }
+  }
+
+  async function sendPhoneOtp() {
+    setSendingOtp(true);
+    setMessage("");
+    try {
+      const phone = `${INDIA_PREFIX}${phoneInput}`;
+      const otpRes = await fetch("/api/settings/phone/verify/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ phone }),
+      });
+      const data = (await otpRes.json()) as { error?: string };
+      if (!otpRes.ok) {
+        setMessage(data.error ?? "Unable to send OTP.");
+        return;
+      }
+      setMessage("OTP sent to your phone.");
+    } catch {
+      setMessage("Unable to send OTP.");
+    } finally {
+      setSendingOtp(false);
+    }
+  }
+
+  async function confirmPhoneOtp() {
+    setVerifyingOtp(true);
+    setMessage("");
+    try {
+      const phone = `${INDIA_PREFIX}${phoneInput}`;
+      const res = await fetch("/api/settings/phone/verify/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ phone, otp: otpInput }),
+      });
+      const data = (await res.json()) as { error?: string; verified?: boolean; phone?: string };
+      if (!res.ok || !data.verified) {
+        setMessage(data.error ?? "OTP verification failed.");
+        return;
+      }
+      setBilling((prev) => (prev ? { ...prev, phoneVerified: true, phone: data.phone ?? phoneInput } : prev));
+      setOtpInput("");
+      setMessage("Phone verified and saved successfully.");
+    } catch {
+      setMessage("OTP verification failed.");
+    } finally {
+      setVerifyingOtp(false);
     }
   }
 
@@ -255,6 +329,55 @@ export default function SettingsPage() {
                 </a>
               ) : null}
             </div>
+            {!billing.phoneVerified ? (
+              <div className="space-y-2 rounded-xl border border-amber-400/35 bg-amber-400/10 p-3">
+                <p className="text-xs text-amber-200">
+                  Verify your phone number to enable Razorpay subscription checkout.
+                </p>
+                  <div className="flex items-center rounded-xl border border-white/12 bg-white/[0.05]">
+                    <span className="px-3 text-sm font-medium text-[var(--muted)]">{INDIA_PREFIX}</span>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="9876543210"
+                      className="w-full bg-transparent px-3.5 py-2.5 text-sm text-[var(--white)] placeholder:text-[var(--hint)] focus:outline-none"
+                    />
+                  </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void sendPhoneOtp()}
+                    disabled={sendingOtp || phoneInput.length !== 10}
+                    className="rounded-xl border border-[#BEFF47]/35 bg-[#BEFF47]/10 px-3 py-2 text-xs font-semibold text-[#06080A] hover:bg-[#BEFF47]/18 dark:text-[#B8E86A] disabled:opacity-60"
+                  >
+                    {sendingOtp ? "Sending OTP…" : "Send OTP"}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="Enter 6-digit OTP"
+                    className={inputFieldClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void confirmPhoneOtp()}
+                    disabled={verifyingOtp || otpInput.length !== 6}
+                    className="rounded-xl bg-[#BEFF47] px-3 py-2 text-xs font-semibold text-[#06080A] hover:bg-[#CCFF5A] disabled:opacity-60"
+                  >
+                    {verifyingOtp ? "Verifying…" : "Verify OTP"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-emerald-400">Phone verified for billing: {billing.phone ?? "Saved"}</p>
+            )}
             <p className="text-xs text-gray-500 dark:text-slate-500">
               Pro unlocks AI meal estimates and the AI coach. Configure your billing keys in production.
             </p>

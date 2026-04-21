@@ -13,6 +13,8 @@ export async function GET() {
         subscriptionStatus: true,
         subscriptionCurrentPeriodEnd: true,
         stripeCustomerId: true,
+        phone: true,
+        phoneVerified: true,
       },
     });
     if (!user) {
@@ -24,6 +26,8 @@ export async function GET() {
       subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd?.toISOString() ?? null,
       hasPro: hasProAccess(user),
       canManageBilling: !!user.stripeCustomerId,
+      phone: user.phone,
+      phoneVerified: !!user.phoneVerified,
     });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

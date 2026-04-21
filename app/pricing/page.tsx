@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, Loader2, Sparkles } from "lucide-react";
 import { AppBrand } from "@/components/AppBrand";
 
@@ -12,7 +13,7 @@ type RazorpayCheckoutOptions = {
   name: string;
   description: string;
   image: string;
-  prefill: { name: string; email: string; contact: string };
+  prefill: { name: string; email: string; contact?: string };
   notes: Record<string, string>;
   theme: { color: string };
 };
@@ -25,22 +26,52 @@ declare global {
 
 export default function PricingPage() {
   const { status } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [hasPro, setHasPro] = useState<boolean | null>(null);
+  const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
+  const autoStartedRef = useRef(false);
+  const verifyRedirectedRef = useRef(false);
 
   useEffect(() => {
     void fetch("/api/billing/status", { credentials: "include" })
       .then(async (r) => {
-        const d = (await r.json()) as { hasPro?: boolean };
+        const d = (await r.json()) as { hasPro?: boolean; phoneVerified?: boolean };
         if (!r.ok) {
           setHasPro(false);
+          setPhoneVerified(false);
           return;
         }
         setHasPro(!!d.hasPro);
+        setPhoneVerified(!!d.phoneVerified);
       })
-      .catch(() => setHasPro(false));
+      .catch(() => {
+        setHasPro(false);
+        setPhoneVerified(false);
+      });
   }, []);
+
+  useEffect(() => {
+    if (verifyRedirectedRef.current) return;
+    if (status !== "authenticated") return;
+    if (hasPro !== false) return;
+    if (phoneVerified !== false) return;
+    verifyRedirectedRef.current = true;
+    router.replace("/verify-phone?callbackUrl=/pricing");
+  }, [status, hasPro, phoneVerified, router]);
+
+  useEffect(() => {
+    if (autoStartedRef.current) return;
+    const shouldAutoStart = searchParams.get("autostartCheckout") === "1";
+    if (!shouldAutoStart) return;
+    if (status !== "authenticated") return;
+    if (hasPro !== false) return;
+    autoStartedRef.current = true;
+    router.replace("/pricing", { scroll: false });
+    void checkout();
+  }, [searchParams, status, hasPro, router]);
 
   async function ensureRazorpayScript(): Promise<boolean> {
     if (window.Razorpay) return true;
@@ -62,9 +93,13 @@ export default function PricingPage() {
     setError("");
     try {
       const res = await fetch("/api/billing/checkout", { method: "POST", credentials: "include" });
-      const data = (await res.json()) as { checkout?: RazorpayCheckoutOptions; error?: string };
+      const data = (await res.json()) as { checkout?: RazorpayCheckoutOptions; error?: string; code?: string; settingsUrl?: string };
       if (res.status === 401) {
         setError("Session expired — sign in again to upgrade.");
+        return;
+      }
+      if (res.status === 400 && (data.code === "PHONE_REQUIRED" || data.code === "PHONE_UNVERIFIED")) {
+        router.push(data.settingsUrl ?? "/verify-phone?callbackUrl=/pricing");
         return;
       }
       if (!res.ok || !data.checkout) {
@@ -194,15 +229,13 @@ export default function PricingPage() {
                 {loading ? "Opening checkout…" : hasPro ? "Current plan" : "Upgrade with Razorpay"}
               </button>
 
-              {error ? <p className="mt-2 text-xs text-[#FF5C7A]">{error}</p> : null}
+              {error ? (
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-[#FF5C7A]">{error}</p>
+                </div>
+              ) : null}
             </>
           )}
-
-          <p className="mt-4 text-[10px] leading-relaxed text-[var(--muted)]">
-            Configure <code className="text-[#B8E86A]">RAZORPAY_KEY_ID</code>, <code className="text-[#B8E86A]">RAZORPAY_KEY_SECRET</code>,{" "}
-            <code className="text-[#B8E86A]">RAZORPAY_PLAN_ID</code>, <code className="text-[#B8E86A]">RAZORPAY_WEBHOOK_SECRET</code>,
-            and point the webhook to <code className="text-[#B8E86A]">/api/webhooks/razorpay</code>.
-          </p>
         </div>
       </main>
 

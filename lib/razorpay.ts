@@ -5,7 +5,7 @@ import { appOrigin } from "@/lib/stripe";
 type RazorpayCheckoutPrefill = {
   name: string;
   email: string;
-  contact: string;
+  contact?: string;
 };
 
 export function getRazorpay(): Razorpay | null {
@@ -33,6 +33,10 @@ export function getSubscriptionCheckoutConfig(args: {
     description: "Healthify Pro subscription",
     image: `${appOrigin()}/icon.png`,
     prefill: args.prefill,
+    readonly: {
+      email: true,
+      contact: !!args.prefill.contact,
+    },
     notes: {
       product: "healthify-pro",
     },
