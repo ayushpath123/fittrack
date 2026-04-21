@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Download, Smartphone } from "lucide-react";
 
 type BeforeInstallPromptEvent = Event & {
@@ -18,7 +18,7 @@ function isIosSafari() {
   return isIos && isSafari;
 }
 
-export default function InstallAppPage() {
+function InstallAppPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = useMemo(() => searchParams.get("next") || "/dashboard", [searchParams]);
@@ -114,5 +114,23 @@ export default function InstallAppPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function InstallAppFallback() {
+  return (
+    <div className="mx-auto max-w-md px-4 py-10">
+      <div className="premium-card space-y-4 rounded-2xl p-5">
+        <p className="text-sm text-[var(--muted)]">Loading install options…</p>
+      </div>
+    </div>
+  );
+}
+
+export default function InstallAppPage() {
+  return (
+    <Suspense fallback={<InstallAppFallback />}>
+      <InstallAppPageContent />
+    </Suspense>
   );
 }
