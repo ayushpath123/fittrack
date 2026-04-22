@@ -145,6 +145,8 @@ model User {
   coachThreads CoachThread[]
   authTokens AuthToken[]
   otpCodes OtpCode[]
+  weeklyReports WeeklyReport[]
+  llmCallLogs LlmCallLog[]
 }
 
 model AuthToken {
@@ -224,4 +226,34 @@ model HydrationLog {
 
   @@unique([userId, date])
   @@index([userId, createdAt])
+}
+
+model WeeklyReport {
+  id         String   @id @default(cuid())
+  userId     String
+  weekStart  DateTime
+  reportJson Json
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId, createdAt])
+}
+
+model LlmCallLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  event        String
+  provider     String?
+  model        String?
+  purpose      String?
+  inputTokens  Int?
+  outputTokens Int?
+  costUsd      Float?
+  meta         Json?
+  createdAt    DateTime @default(now())
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }

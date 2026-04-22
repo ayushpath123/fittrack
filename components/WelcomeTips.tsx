@@ -11,11 +11,17 @@ export function WelcomeTips() {
   const [show, setShow] = useState(true);
 
   useEffect(() => {
+    let timer: number | null = null;
     try {
-      if (localStorage.getItem(KEY) === "1") setShow(false);
+      if (localStorage.getItem(KEY) === "1") {
+        timer = window.setTimeout(() => setShow(false), 0);
+      }
     } catch {
       /* ignore */
     }
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+    };
   }, []);
 
   if (!show) return null;

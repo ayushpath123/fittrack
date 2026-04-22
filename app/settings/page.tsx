@@ -47,6 +47,7 @@ export default function SettingsPage() {
   const [otpInput, setOtpInput] = useState("");
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/settings/goals", { credentials: "include" });
@@ -94,6 +95,13 @@ export default function SettingsPage() {
         setPhoneInput(toLocalIndianDigits(d.phone ?? ""));
       })
       .catch(() => setBilling(null));
+  }, []);
+
+  useEffect(() => {
+    void fetch("/api/admin/status", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d: { isAdmin?: boolean }) => setIsAdmin(!!d.isAdmin))
+      .catch(() => setIsAdmin(false));
   }, []);
 
   useEffect(() => {
@@ -381,6 +389,14 @@ export default function SettingsPage() {
             <p className="text-xs text-gray-500 dark:text-slate-500">
               Pro unlocks AI meal estimates and the AI coach. Configure your billing keys in production.
             </p>
+            {isAdmin ? (
+              <a
+                href="/admin"
+                className="inline-flex items-center rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-medium text-[var(--muted)] hover:bg-white/[0.07] hover:text-[#B8E86A]"
+              >
+                Open admin AI cost dashboard
+              </a>
+            ) : null}
           </div>
         ) : (
           <p className="text-sm text-gray-500 dark:text-slate-400">Loading subscription…</p>

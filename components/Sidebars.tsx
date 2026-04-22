@@ -43,10 +43,7 @@ export function Sidebars() {
   const onDashboard = pathname === "/dashboard";
 
   useEffect(() => {
-    if (!onDashboard || !session?.user) {
-      setLoggingStreak(null);
-      return;
-    }
+    if (!onDashboard || !session?.user) return;
     let cancelled = false;
     void fetch("/api/user/logging-streak", { credentials: "include" })
       .then(async (r) => {
@@ -62,7 +59,7 @@ export function Sidebars() {
     return () => {
       cancelled = true;
     };
-  }, [onDashboard, session?.user?.id]);
+  }, [onDashboard, session?.user]);
 
   const closeAll = () => {
     setProfileOpen(false);

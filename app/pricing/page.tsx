@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, Loader2, Sparkles } from "lucide-react";
@@ -62,30 +62,7 @@ function PricingPageContent() {
     router.replace("/verify-phone?callbackUrl=/pricing");
   }, [status, hasPro, phoneVerified, router]);
 
-  useEffect(() => {
-    if (autoStartedRef.current) return;
-    const shouldAutoStart = searchParams.get("autostartCheckout") === "1";
-    if (!shouldAutoStart) return;
-    if (status !== "authenticated") return;
-    if (hasPro !== false) return;
-    autoStartedRef.current = true;
-    router.replace("/pricing", { scroll: false });
-    void checkout();
-  }, [searchParams, status, hasPro, router]);
-
-  async function ensureRazorpayScript(): Promise<boolean> {
-    if (window.Razorpay) return true;
-    return await new Promise((resolve) => {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  }
-
-  async function checkout() {
+  const checkout = useCallback(async () => {
     if (status === "unauthenticated") {
       return;
     }
@@ -137,6 +114,29 @@ function PricingPageContent() {
     } finally {
       setLoading(false);
     }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (autoStartedRef.current) return;
+    const shouldAutoStart = searchParams.get("autostartCheckout") === "1";
+    if (!shouldAutoStart) return;
+    if (status !== "authenticated") return;
+    if (hasPro !== false) return;
+    autoStartedRef.current = true;
+    router.replace("/pricing", { scroll: false });
+    void checkout();
+  }, [searchParams, status, hasPro, router, checkout]);
+
+  async function ensureRazorpayScript(): Promise<boolean> {
+    if (window.Razorpay) return true;
+    return await new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
   }
 
   const guest = status === "unauthenticated";

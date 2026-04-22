@@ -7,7 +7,6 @@ import { ChevronLeft, Loader2, Send, Sparkles } from "lucide-react";
 type CoachAction = { label: string; href: string };
 type ChatTurn = { role: "user" | "assistant"; content: string };
 const CHAT_MEMORY_KEY = "coach_chat_v1";
-const THREAD_KEY = "coach_thread_id_v1";
 
 const STARTERS = [
   "How should I finish today to hit my calorie target?",
@@ -22,8 +21,7 @@ export function CoachClient() {
   const [actions, setActions] = useState<CoachAction[]>([]);
   const [lastToolNames, setLastToolNames] = useState<string[]>([]);
   const [error, setError] = useState("");
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [billingReady, setBillingReady] = useState(false);
+  const billingReady = true;
   const [hasPro, setHasPro] = useState(false);
 
   useEffect(() => {
@@ -47,12 +45,6 @@ export function CoachClient() {
     } catch {
       // ignore invalid local cache
     }
-    try {
-      const t = window.localStorage.getItem(THREAD_KEY);
-      if (t) setThreadId(t);
-    } catch {
-      // ignore
-    }
   }, []);
 
   useEffect(() => {
@@ -64,23 +56,10 @@ export function CoachClient() {
   }, [chat]);
 
   useEffect(() => {
-    try {
-      if (threadId) window.localStorage.setItem(THREAD_KEY, threadId);
-    } catch {
-      // ignore
-    }
-  }, [threadId]);
-
-  useEffect(() => {
     void fetch("/api/billing/status", { credentials: "include" })
       .then((r) => r.json())
-      .then((d: { hasPro?: boolean }) => {
-        setHasPro(!!d.hasPro);
-        setBillingReady(true);
-      })
-      .catch(() => {
-        setBillingReady(true);
-      });
+      .then((d: { hasPro?: boolean }) => setHasPro(!!d.hasPro))
+      .catch(() => setHasPro(false));
   }, []);
 
   async function send(text: string) {
@@ -95,61 +74,43 @@ export function CoachClient() {
     setChat(nextChat);
     const priorTurns = nextChat.slice(0, -1).slice(-8);
     try {
-      const res = await fetch("/api/ai/coach", {
+      const res = await fetch("/api/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          message: q,
-          history: priorTurns,
-          ...(threadId ? { threadId } : {}),
-        }),
+        body: JSON.stringify({ question: q, history: priorTurns }),
       });
       const data = (await res.json()) as {
         error?: string;
-        reply?: string;
-        actions?: CoachAction[];
-        toolCalls?: { name: string; args: Record<string, unknown> }[];
-        threadId?: string;
-        upgradeUrl?: string;
-        retryAfterSec?: number;
+        diagnosis?: string;
+        key_issues?: string[];
+        action_plan?: string[];
+        expected_impact?: string;
+        confidence?: number;
+        paywall?: boolean;
       };
       if (res.status === 403 && data.error === "PRO_REQUIRED") {
-        setHasPro(false);
         setChat((prev) => prev.slice(0, -1));
+        setHasPro(false);
         setError("AI Coach is part of Pro. Upgrade to continue.");
         return;
       }
-      if (res.status === 404) {
-        setThreadId(null);
-        try {
-          window.localStorage.removeItem(THREAD_KEY);
-        } catch {
-          // ignore
-        }
-        setChat((prev) => prev.slice(0, -1));
-        setError("Chat thread expired. Try again.");
-        return;
-      }
-      if (res.status === 429) {
-        setChat((prev) => prev.slice(0, -1));
-        setError(
-          data.retryAfterSec
-            ? `Too many requests. Try again in about ${data.retryAfterSec}s.`
-            : "Too many requests. Try again shortly.",
-        );
-        return;
-      }
-      if (!res.ok || !data.reply) {
+      if (!res.ok || !data.diagnosis) {
         setChat((prev) => prev.slice(0, -1));
         setError(data.error ?? "Coach could not answer right now.");
         return;
       }
-      const coachReply = data.reply;
-      if (data.threadId) setThreadId(data.threadId);
+      const coachReply = [
+        data.diagnosis,
+        Array.isArray(data.key_issues) && data.key_issues.length ? `Key issues: ${data.key_issues.join(", ")}` : "",
+        Array.isArray(data.action_plan) && data.action_plan.length ? `Action plan:\n- ${data.action_plan.join("\n- ")}` : "",
+        data.expected_impact ? `Expected impact: ${data.expected_impact}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
       setChat((prev) => [...prev, { role: "assistant" as const, content: coachReply }].slice(-12));
-      setLastToolNames(Array.isArray(data.toolCalls) ? data.toolCalls.map((t) => t.name) : []);
-      setActions(Array.isArray(data.actions) ? data.actions : []);
+      setLastToolNames([]);
+      setActions([]);
     } catch {
       setChat((prev) => prev.slice(0, -1));
       setError("Network error.");
@@ -185,10 +146,7 @@ export function CoachClient() {
             Pro feature
           </div>
           <h1 className="num mt-2 text-xl font-bold text-[var(--white)]">AI Coach</h1>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            The agentic coach (Gemini + your logs) is included with <strong className="text-[var(--white)]">Healthify Pro</strong> to
-            cover API costs and keep advice private to your data.
-          </p>
+          <p className="mt-2 text-sm text-[var(--muted)]">This endpoint is now premium-only.</p>
           <Link
             href="/pricing"
             className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#BEFF47,#7E73F6)] py-2.5 text-sm font-semibold text-white"
@@ -212,14 +170,14 @@ export function CoachClient() {
         </Link>
         <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(190,255,71,.35)] bg-[rgba(190,255,71,.15)] px-2 py-1 text-[10px] font-semibold text-[#B8E86A]">
           <Sparkles size={11} />
-          Pro · Agentic coach
+          AI Coach V3
         </span>
       </div>
 
       <div className="premium-card rounded-2xl p-4">
         <h1 className="num text-xl font-bold text-[var(--white)]">AI Coach</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Answers use your goals and recent logs from this app. Powered by Gemini.
+          Answers use your goals and recent logs from this app. First question is free, then premium.
         </p>
 
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -279,10 +237,8 @@ export function CoachClient() {
                   setChat([]);
                   setActions([]);
                   setLastToolNames([]);
-                  setThreadId(null);
                   try {
                     window.localStorage.removeItem(CHAT_MEMORY_KEY);
-                    window.localStorage.removeItem(THREAD_KEY);
                   } catch {
                     // ignore storage issues
                   }

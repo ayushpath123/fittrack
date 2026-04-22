@@ -52,7 +52,7 @@ export default async function DashboardPage() {
   const weekMeals = fortnightMeals.filter((m) => inTimeRangeMs(new Date(m.date), weekStart, endOfDay(today)));
   const prevWeekMeals = fortnightMeals.filter((m) => inTimeRangeMs(new Date(m.date), prevWeekStart, prevWeekEnd));
   const weekWorkouts = fortnightWorkouts.filter((w) => inTimeRangeMs(new Date(w.date), weekStart, endOfDay(today)));
-  const prevWeekWorkouts = fortnightWorkouts.filter((w) => inTimeRangeMs(new Date(w.date), prevWeekStart, prevWeekEnd));
+  // const prevWeekWorkouts = fortnightWorkouts.filter((w) => inTimeRangeMs(new Date(w.date), prevWeekStart, prevWeekEnd));
   const weekHydration = fortnightHydration.filter((h) => inTimeRangeMs(new Date(h.date), weekStart, endOfDay(today)));
 
   const CALORIE_TARGET = goals?.calorieTarget ?? 1500;
@@ -90,7 +90,6 @@ export default async function DashboardPage() {
   const calThisWeek = weekMeals.reduce((s, m) => s + m.totalCalories, 0);
   const calPrevWeek = prevWeekMeals.reduce((s, m) => s + m.totalCalories, 0);
   const calWeekDelta = calThisWeek - calPrevWeek;
-  const workoutWeekDelta = weekWorkouts.length - prevWeekWorkouts.length;
 
   let weightDelta: number | null = null;
   let weightDeltaNote: "7d" | "last_log" | null = null;
@@ -187,7 +186,7 @@ export default async function DashboardPage() {
         <div className="flex items-end justify-between mb-4">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)] mb-0.5">
-              Today's nutrition
+              Today&apos;s nutrition
             </p>
             <div className="flex items-baseline gap-1.5">
               <span className="num text-2xl font-bold text-[var(--white)]">

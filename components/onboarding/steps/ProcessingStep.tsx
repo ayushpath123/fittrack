@@ -31,11 +31,14 @@ export default function ProcessingStep({ direction, results, onDashboard }: Proc
 
   useEffect(() => {
     if (done) {
-      setMsgIdx(3);
-      return;
+      const timer = setTimeout(() => setMsgIdx(3), 0);
+      return () => clearTimeout(timer);
     }
-    const timers = [0, 650, 1350].map((delay, i) => setTimeout(() => setMsgIdx(i + 1), delay + 350));
-    return () => timers.forEach(clearTimeout);
+    if (!done) {
+      const timers = [0, 650, 1350].map((delay, i) => setTimeout(() => setMsgIdx(i + 1), delay + 350));
+      return () => timers.forEach(clearTimeout);
+    }
+    return () => {};
   }, [done]);
 
   const macros = results

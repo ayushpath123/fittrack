@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { WeeklyReviewClient } from "./WeeklyReviewClient";
 
 export default function WeeklyPage() {
-  redirect("/analytics");
+  return <WeeklyReviewClient />;
 }
