@@ -85,7 +85,7 @@ Return strict JSON:
     if (error instanceof LlmHttpError) {
       if (error.status === 429) {
         return NextResponse.json(
-          { error: "AI quota exceeded. Please try later or upgrade Gemini billing.", code: "AI_RATE_LIMIT" },
+          { error: "AI provider quota exceeded. Please try again later.", code: "AI_RATE_LIMIT" },
           { status: 429 },
         );
       }

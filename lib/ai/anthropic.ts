@@ -69,8 +69,8 @@ async function callGeminiJson(args: AnthropicMessageArgs): Promise<string> {
         status: res.status,
         raw: raw.slice(0, 300),
       });
-      // Retry other candidate model only for "not found"-style failures.
-      if (res.status === 404) {
+      // Retry with another model for transient/provider capacity issues.
+      if (res.status === 404 || res.status === 429 || res.status >= 500) {
         continue;
       }
       throw new LlmHttpError(lastError, res.status);
