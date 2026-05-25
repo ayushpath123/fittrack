@@ -1,12 +1,41 @@
 import { randomBytes } from "crypto";
 import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
+import type { NextRequest } from "next/server";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { compare, hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { loginSchema, phoneLoginSchema } from "@/lib/validations/auth";
 import { normalizePhone, verifyOtp } from "@/lib/otp";
+
+function isGoogleProvider(account: { provider?: string } | null | undefined) {
+  const p = account?.provider;
+  return p === "google" || p === "google-oauth2";
+}
+
+/** Ensures OAuth (Google) sessions use a Prisma User id (token.sub), not the provider subject. */
+async function prismaUserIdForGoogleProfile(profile: unknown, emailFallback: string | null | undefined) {
+  const emailRaw =
+    profile && typeof profile === "object" && "email" in profile && typeof (profile as { email?: string }).email === "string"
+      ? (profile as { email: string }).email
+      : emailFallback;
+  const email = typeof emailRaw === "string" ? emailRaw.trim().toLowerCase() : null;
+  if (!email) {
+    console.error("[auth] Google sign-in rejected: missing email on profile");
+    throw new Error("GoogleSignInMissingEmail");
+  }
+  const dbUser = await prisma.user.upsert({
+    where: { email },
+    create: {
+      email,
+      passwordHash: await hash(randomBytes(32).toString("hex"), 12),
+      emailVerified: new Date(),
+    },
+    update: {},
+  });
+  return dbUser.id;
+}
 
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
@@ -87,27 +116,9 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user, account, profile }) {
       // Google OAuth must map to a Prisma User row; otherwise token.sub is a provider id and FKs (e.g. GoalSetting) fail.
-      if (user && account?.provider === "google") {
-        const emailRaw =
-          profile && typeof profile === "object" && "email" in profile && typeof (profile as { email?: string }).email === "string"
-            ? (profile as { email: string }).email
-            : user.email;
-        const email = typeof emailRaw === "string" ? emailRaw.trim().toLowerCase() : null;
-        if (!email) {
-          console.error("[auth] Google sign-in rejected: missing email on profile");
-          throw new Error("GoogleSignInMissingEmail");
-        }
+      if (user && isGoogleProvider(account)) {
         try {
-          const dbUser = await prisma.user.upsert({
-            where: { email },
-            create: {
-              email,
-              passwordHash: await hash(randomBytes(32).toString("hex"), 12),
-              emailVerified: new Date(),
-            },
-            update: {},
-          });
-          token.sub = dbUser.id;
+          token.sub = await prismaUserIdForGoogleProfile(profile, user.email);
           return token;
         } catch (e) {
           console.error("[auth] Google user upsert failed", e);
@@ -115,7 +126,20 @@ export const authOptions: NextAuthOptions = {
         }
       }
       if (user) {
-        token.sub = user.id;
+        const prismaById = await prisma.user.findUnique({ where: { id: user.id }, select: { id: true } });
+        if (prismaById) {
+          token.sub = user.id;
+        } else if (account?.type === "oauth" && isGoogleProvider(account) && user.email) {
+          try {
+            token.sub = await prismaUserIdForGoogleProfile(profile, user.email);
+          } catch (e) {
+            console.error("[auth] Google user upsert (fallback) failed", e);
+            throw e;
+          }
+        } else {
+          token.sub = user.id;
+        }
+        return token;
       }
       return token;
     },
@@ -136,5 +160,20 @@ export async function requireUserId() {
   const session = await getAuthSession();
   const userId = session?.user?.id;
   if (!userId) throw new Error("Unauthorized");
+  const row = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  if (!row) throw new Error("Unauthorized");
   return userId;
+}
+
+export function getBearerToken(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader) return null;
+  const [scheme, token] = authHeader.split(" ");
+  if (scheme?.toLowerCase() !== "bearer" || !token) return null;
+  return token;
+}
+
+export async function requireUserIdFromRequest(req: NextRequest) {
+  void req;
+  return requireUserId();
 }

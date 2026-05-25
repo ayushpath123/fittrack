@@ -1,10 +1,10 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 
-export async function PATCH(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const userId = await requireUserId();
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const userId = await requireUserIdFromRequest(req);
   const { id } = await params;
   const updated = await prisma.workout.updateMany({ where: { id, userId }, data: { completed: true } });
   if (!updated.count) return NextResponse.json({ error: "Workout not found" }, { status: 404 });
@@ -12,8 +12,8 @@ export async function PATCH(_: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json(workout);
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const userId = await requireUserId();
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const userId = await requireUserIdFromRequest(req);
   const { id } = await params;
   const deleted = await prisma.workout.deleteMany({ where: { id, userId } });
   if (!deleted.count) return NextResponse.json({ error: "Workout not found" }, { status: 404 });

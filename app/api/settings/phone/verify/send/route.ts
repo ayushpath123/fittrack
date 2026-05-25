@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { requireUserId } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { issueOtp, normalizePhone, OtpThrottleError } from "@/lib/otp";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    await requireUserId();
+    await requireUserIdFromRequest(req);
     const body = (await req.json()) as { phone?: string };
     if (!body.phone) {
       return NextResponse.json({ error: "Phone is required." }, { status: 400 });

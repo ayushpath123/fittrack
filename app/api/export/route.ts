@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 
 const MAX_EXPORT_ROWS = 10000;
 
 export async function GET(req: NextRequest) {
-  const userId = await requireUserId();
+  const userId = await requireUserIdFromRequest(req);
   const format = req.nextUrl.searchParams.get("format") ?? "json";
 
   const [mealCount, workoutCount, weightCount, hydrationCount] = await Promise.all([

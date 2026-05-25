@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { weightPatchSchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const userId = await requireUserId();
+  const userId = await requireUserIdFromRequest(req);
   const { id } = await params;
   const parsed = weightPatchSchema.safeParse(await req.json());
   if (!parsed.success) {
@@ -21,8 +21,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json(log);
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const userId = await requireUserId();
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const userId = await requireUserIdFromRequest(req);
   const { id } = await params;
   const deleted = await prisma.weightLog.deleteMany({ where: { id, userId } });
   if (!deleted.count) return NextResponse.json({ error: "Weight log not found" }, { status: 404 });

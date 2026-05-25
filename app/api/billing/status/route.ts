@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { hasProAccess } from "@/lib/billing";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const userId = await requireUserId();
+    const userId = await requireUserIdFromRequest(req);
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {

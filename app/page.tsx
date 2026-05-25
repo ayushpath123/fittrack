@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getAuthSession } from "@/lib/auth";
 import { LandingPage } from "@/components/LandingPage";
+import { getAuthSession } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "FitTrack — Meals, workouts & habits",
   description:
-    "Track nutrition, training, weight, and water in one place. Sign in for a short onboarding, then your dashboard.",
+    "Track nutrition, training, weight, and water in one place.",
 };
 
 export default async function Home() {

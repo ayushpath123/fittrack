@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { normalizePhone, verifyOtp } from "@/lib/otp";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const userId = await requireUserId();
+    const userId = await requireUserIdFromRequest(req);
     const body = (await req.json()) as { otp?: string; phone?: string };
     const otp = body.otp?.trim() ?? "";
     if (!body.phone) {

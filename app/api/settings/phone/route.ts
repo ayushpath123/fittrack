@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { normalizePhone } from "@/lib/otp";
 
-export async function PUT(req: Request) {
+export async function PUT(req: NextRequest) {
   try {
-    const userId = await requireUserId();
+    const userId = await requireUserIdFromRequest(req);
     const body = (await req.json()) as { phone?: string };
     if (!body.phone) {
       return NextResponse.json({ error: "Phone is required." }, { status: 400 });

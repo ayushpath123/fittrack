@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { getRazorpay, getSubscriptionCheckoutConfig } from "@/lib/razorpay";
 
 function normalizeIndianMobile(phone: string | null): string | undefined {
@@ -11,9 +11,9 @@ function normalizeIndianMobile(phone: string | null): string | undefined {
   return undefined;
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
-    const userId = await requireUserId();
+    const userId = await requireUserIdFromRequest(req);
     const razorpay = getRazorpay();
     const planId = process.env.RAZORPAY_PLAN_ID;
     if (!razorpay || !planId) {

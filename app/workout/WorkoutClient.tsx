@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Plus, Trash2 } from "lucide-react";
 import { ExerciseEntryType, WorkoutType } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
+import { GamificationPanel } from "@/components/GamificationPanel";
+import { InsightCallout } from "@/components/InsightCallout";
+import { PrimaryActionBar } from "@/components/PrimaryActionBar";
+import { SectionHeader } from "@/components/SectionHeader";
 import { Toast } from "@/components/Toast";
 import { StatBanner } from "@/components/StatBanner";
 
@@ -187,12 +191,14 @@ export function WorkoutClient({
 
   return (
     <div className="space-y-4">
+      <GamificationPanel compact />
       {!started ? (
         <>
-          <div>
-            <h1 className="num text-2xl font-bold tracking-tight text-[var(--white)]">Lift</h1>
-            <p className="text-sm text-[var(--muted)]">Start a session or reuse a recent day</p>
-          </div>
+          <SectionHeader
+            eyebrow="Training day"
+            title="Lift"
+            subtitle="Start a focused session or reuse a recent template."
+          />
           <StatBanner
             label="Training baseline"
             color="green"
@@ -201,12 +207,18 @@ export function WorkoutClient({
               { value: `${Object.keys(exerciseHints).length}`, sub: "exercise hints" },
             ]}
           />
-          <button
-            onClick={() => setStarted(true)}
-            className="w-full rounded-xl bg-[#BEFF47] py-3 text-base font-semibold text-[#06080A] transition-transform hover:bg-[#CCFF5A] active:scale-95"
-          >
-            Start workout
-          </button>
+          <PrimaryActionBar
+            title="Next best step"
+            subtitle="Start today with one exercise. You can expand after you begin."
+            action={
+              <button
+                onClick={() => setStarted(true)}
+                className="rounded-xl bg-[#BEFF47] px-4 py-2 text-xs font-semibold text-[#06080A] min-h-10 transition-transform hover:bg-[#CCFF5A] active:scale-95"
+              >
+                Start workout
+              </button>
+            }
+          />
           <h2 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)]">Recent</h2>
           {recentWorkouts.map((w) => (
             <div key={w.id} className="premium-card mb-3 flex flex-col gap-2 rounded-2xl p-4">
@@ -225,27 +237,30 @@ export function WorkoutClient({
                 type="button"
                 disabled={!!workout}
                 onClick={() => applyWorkoutTemplate(w)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] py-2 text-xs font-semibold text-[var(--muted)] transition-transform hover:border-[#BEFF47]/25 hover:bg-[#BEFF47]/08 hover:text-[#B8E86A] active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+                className="flex w-full min-h-10 items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] py-2 text-xs font-semibold text-[var(--muted)] transition-transform hover:border-[#BEFF47]/25 hover:bg-[#BEFF47]/08 hover:text-[#B8E86A] active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <Copy size={14} aria-hidden />
                 Use as template for today
               </button>
             </div>
           ))}
+          <InsightCallout
+            title="Momentum rule"
+            body="If motivation is low, copy your last workout and complete just the first two exercises."
+          />
           {!recentWorkouts.length && <EmptyState title="No workout history" subtitle="Start your first workout to build consistency." />}
         </>
       ) : (
         <>
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h1 className="num text-2xl font-bold tracking-tight text-[var(--white)]">Today&apos;s workout</h1>
-              <p className="text-sm text-[var(--muted)]">Exercises and sets</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <SectionHeader title="Today's workout" subtitle="Complete one set at a time and finish strong." />
             </div>
             {workout && !workout.completed && (
               <button
                 onClick={markComplete}
                 disabled={isSaving}
-                className="flex items-center gap-1.5 rounded-full bg-green-600 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-green-700 active:scale-95 disabled:bg-green-400"
+                className="flex min-h-10 items-center gap-1.5 rounded-full bg-green-600 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-green-700 active:scale-95 disabled:bg-green-400"
               >
                 <Check size={14} strokeWidth={2.5} /> {isSaving ? "Saving..." : "Done"}
               </button>
@@ -322,7 +337,7 @@ export function WorkoutClient({
           {!workout?.completed && (
             <button
               onClick={() => setShowModal(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/14 py-3 text-sm text-[var(--hint)] transition-colors hover:border-[#BEFF47]/35 hover:text-[#B8E86A] active:scale-95"
+              className="flex w-full min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/14 py-3 text-sm text-[var(--hint)] transition-colors hover:border-[#BEFF47]/35 hover:text-[#B8E86A] active:scale-95"
             >
               <Plus size={16} /> Add exercise
             </button>
@@ -332,7 +347,7 @@ export function WorkoutClient({
             <button
               onClick={saveWorkout}
               disabled={isSaving}
-              className="w-full rounded-xl bg-[#BEFF47] py-3 font-semibold text-[#06080A] transition-transform hover:bg-[#CCFF5A] active:scale-95 disabled:opacity-40"
+              className="w-full min-h-11 rounded-xl bg-[#BEFF47] py-3 font-semibold text-[#06080A] transition-transform hover:bg-[#CCFF5A] active:scale-95 disabled:opacity-40"
             >
               {isSaving ? "Saving..." : "Save workout"}
             </button>
@@ -343,7 +358,7 @@ export function WorkoutClient({
             <button
               onClick={deleteWorkout}
               disabled={isSaving}
-              className="w-full rounded-xl bg-red-50 py-2.5 text-sm font-medium text-red-800 transition-transform hover:bg-red-100 active:scale-95 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
+              className="w-full min-h-10 rounded-xl bg-red-50 py-2.5 text-sm font-medium text-red-800 transition-transform hover:bg-red-100 active:scale-95 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
             >
               Delete workout
             </button>

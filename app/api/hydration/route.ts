@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { hydrationPostSchema } from "@/lib/validators";
 import { startOfDay, toLocalDateKey } from "@/lib/date";
 
 export async function GET(req: NextRequest) {
   let userId: string;
   try {
-    userId = await requireUserId();
+    userId = await requireUserIdFromRequest(req);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let userId: string;
   try {
-    userId = await requireUserId();
+    userId = await requireUserIdFromRequest(req);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

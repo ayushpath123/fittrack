@@ -147,6 +147,112 @@ model User {
   otpCodes OtpCode[]
   weeklyReports WeeklyReport[]
   llmCallLogs LlmCallLog[]
+  leaderboardAlias    String?
+  leaderboardPublic   Boolean            @default(false)
+  leaderboardEntries  LeaderboardEntry[]
+  userGamification      UserGamification?
+  gamificationAuditLogs GamificationAuditLog[]
+  dailyActivityLogs     DailyActivityLog[]
+  weeklyBossLogs        WeeklyBossLog[]
+}
+
+enum GamificationAction {
+  CHEST_CLAIM
+  BOSS_CLAIM
+  BUY_FREEZE
+  BUY_XP_BOOST
+  ARM_FREEZE
+  USE_XP_BOOST
+  ACTIVITY_LOG
+  XP_AWARD
+  QUEST_XP
+  STREAK_SYNC
+}
+
+model UserGamification {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  coins                Int       @default(0)
+  freezeInventory      Int       @default(0)
+  xpBoostTokens        Int       @default(0)
+  freezeArmed          Boolean   @default(false)
+  totalXp              Int       @default(0)
+  level                Int       @default(1)
+  rank                 String    @default("Bronze I")
+  globalStreak         Int       @default(0)
+  bestGlobalStreak     Int       @default(0)
+  mealStreak           Int       @default(0)
+  workoutStreak        Int       @default(0)
+  hydrationStreak      Int       @default(0)
+  lastChestClaimedAt  DateTime?
+  lastBossClaimedWeek  String?
+  questPayoutsByDay    Json      @default("{}")
+  lockedAt             DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GamificationAuditLog {
+  id            String              @id @default(cuid())
+  userId        String
+  action        GamificationAction
+  coinsDelta    Int                 @default(0)
+  previousValue Json?
+  newValue      Json?
+  ipAddress     String?
+  userAgent     String?
+  flagged       Boolean             @default(false)
+  flagReason    String?
+  metadata      Json?
+  createdAt     DateTime            @default(now())
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, action, createdAt])
+}
+
+model DailyActivityLog {
+  id               String   @id @default(cuid())
+  userId           String
+  date             DateTime @db.Date
+  mealsLogged      Boolean  @default(false)
+  workoutLogged    Boolean  @default(false)
+  hydrationLogged  Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model WeeklyBossLog {
+  id          String   @id @default(cuid())
+  userId      String
+  weekKey     String
+  progress    Int      @default(0)
+  target      Int      @default(5)
+  defeated    Boolean  @default(false)
+  lootClaimed Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekKey])
+  @@index([userId, weekKey])
+}
+
+model LeaderboardEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  seasonKey String
+  xp        Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, seasonKey])
+  @@index([seasonKey, xp])
 }
 
 model AuthToken {

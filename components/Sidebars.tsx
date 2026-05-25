@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   Calendar,
   Camera,
   ChevronRight,
@@ -11,6 +12,7 @@ import {
   EllipsisVertical,
   Flame,
   LogOut,
+  Medal,
   Target,
   TrendingUp,
   Zap,
@@ -23,6 +25,8 @@ import toast from "react-hot-toast";
 
 const profileMenuLinks = [
   { href: "/dashboard", label: "Home", hint: "Today snapshot", icon: TrendingUp },
+  { href: "/activity", label: "Activity", hint: "Rhythm, feed, wearables (soon)", icon: Activity },
+  { href: "/leaderboards", label: "Global ranks", hint: "Monthly XP ladder", icon: Medal },
   { href: "/meals", label: "Meals", hint: "Log and review intake", icon: Camera },
   { href: "/workout", label: "Workout", hint: "Sessions & exercises", icon: Dumbbell },
   { href: "/weight", label: "Weight", hint: "Track scale trend", icon: TrendingUp },
@@ -94,13 +98,13 @@ export function Sidebars() {
       <header
         className="fixed top-0 left-0 right-0 z-40"
         style={{
-          background: "rgba(8,9,15,.94)",
-          borderBottom: "1px solid rgba(255,255,255,.08)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
+          background: "linear-gradient(180deg, rgba(10,12,20,.94), rgba(9,11,18,.9))",
+          borderBottom: "1px solid rgba(255,255,255,.1)",
+          backdropFilter: "blur(26px)",
+          WebkitBackdropFilter: "blur(26px)",
         }}
       >
-        <div className="max-w-md mx-auto px-3 py-2.5 h-[var(--app-header-h)] flex items-center justify-between">
+        <div className="max-w-md mx-auto px-3.5 py-2.5 h-[var(--app-header-h)] flex items-center justify-between">
           <div className="min-w-0">
             <AppBrand href="/" />
           </div>
@@ -109,8 +113,8 @@ export function Sidebars() {
               <div
                 className="flex h-9 min-w-[2.75rem] shrink-0 items-center justify-center gap-1 rounded-xl border px-2.5 active:scale-[0.98] transition-transform"
                 style={{
-                  borderColor: "rgba(251,146,60,.28)",
-                  background: "rgba(251,146,60,.10)",
+                  borderColor: "rgba(251,146,60,.35)",
+                  background: "rgba(251,146,60,.14)",
                 }}
                 title="Meal logging streak — consecutive days with at least one meal logged"
               >
@@ -125,7 +129,7 @@ export function Sidebars() {
               href="/meals?action=ai"
               aria-label="AI camera calorie estimate"
               className="flex h-9 w-9 items-center justify-center rounded-xl border active:scale-95 transition-transform"
-              style={{ borderColor: "rgba(190,255,71,.22)", background: "rgba(190,255,71,.12)" }}
+              style={{ borderColor: "rgba(190,255,71,.32)", background: "rgba(190,255,71,.16)" }}
             >
               <Camera size={16} className="text-[#BEFF47]" />
             </Link>
@@ -137,7 +141,7 @@ export function Sidebars() {
                 aria-haspopup="dialog"
                 onClick={() => setProfileOpen((o) => !o)}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border active:scale-95 transition-transform"
-                style={{ borderColor: "rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)" }}
+                style={{ borderColor: "rgba(255,255,255,.2)", background: "rgba(255,255,255,.08)" }}
               >
                 <EllipsisVertical size={16} className="text-[var(--white)]" />
               </button>

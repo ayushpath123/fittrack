@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { getRazorpay, isValidRazorpaySubscriptionSignature } from "@/lib/razorpay";
 
 export const runtime = "nodejs";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const userId = await requireUserId();
+    const userId = await requireUserIdFromRequest(req);
     const body = (await req.json()) as {
       razorpay_payment_id?: string;
       razorpay_subscription_id?: string;

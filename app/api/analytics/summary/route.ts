@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { addDays, getDaysAgo, startOfDay, toLocalDateKey } from "@/lib/date";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import {
   buildWeeklyAnalyticsBuckets,
   calculateAdherence,
@@ -27,7 +27,7 @@ type DailyWorkoutRow = {
 };
 
 export async function GET(req: NextRequest) {
-  const userId = await requireUserId();
+  const userId = await requireUserIdFromRequest(req);
   const rangeResult = analyticsQuerySchema.safeParse({
     range: req.nextUrl.searchParams.get("range") ?? undefined,
   });

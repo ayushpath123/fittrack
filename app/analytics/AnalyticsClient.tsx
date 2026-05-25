@@ -14,6 +14,10 @@ import {
 } from "recharts";
 import { Flame, Target, TrendingDown, Trophy } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
+import { GamificationPanel } from "@/components/GamificationPanel";
+import { InsightCallout } from "@/components/InsightCallout";
+import { PrimaryActionBar } from "@/components/PrimaryActionBar";
+import { SectionHeader } from "@/components/SectionHeader";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { toLocalDateKey } from "@/lib/date";
 
@@ -320,10 +324,28 @@ export function AnalyticsClient() {
 
   return (
     <div className="touch-manipulation space-y-4">
-      <div>
-        <h1 className="num text-2xl font-bold tracking-tight text-[var(--white)]">Analytics</h1>
-        <p className="text-sm text-[var(--muted)]">Trends from your logs</p>
-      </div>
+      <SectionHeader
+        eyebrow="Progress intelligence"
+        title="Analytics"
+        subtitle="Use trend signals to choose the next most useful action."
+      />
+      <GamificationPanel compact />
+      <PrimaryActionBar
+        title="Next best step"
+        subtitle={
+          data.summary.adherence < 70
+            ? "Consistency is the biggest lever now. Log meals for the next two days."
+            : "Great consistency. Refine protein and hydration for better body-composition trends."
+        }
+        action={
+          <Link
+            href={data.summary.adherence < 70 ? "/meals?action=log" : "/dashboard"}
+            className="rounded-xl bg-[#BEFF47] px-3.5 py-2 text-[11px] font-semibold text-[#06080A]"
+          >
+            Do it
+          </Link>
+        }
+      />
       <div className="flex gap-2">
         <Link
           href="/weight"
@@ -626,6 +648,10 @@ export function AnalyticsClient() {
           ))}
         </div>
       </div>
+      <InsightCallout
+        title="How to read this"
+        body="Use weekly direction to adjust behavior. Avoid reacting to one isolated day unless the pattern repeats."
+      />
         </>
       ) : null}
     </div>

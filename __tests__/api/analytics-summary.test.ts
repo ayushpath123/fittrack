@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
-  requireUserId: vi.fn(),
+  requireUserIdFromRequest: vi.fn(),
   findManyMeals: vi.fn(),
   findManyWorkouts: vi.fn(),
   findManyWeights: vi.fn(),
@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  requireUserId: mocks.requireUserId,
+  requireUserIdFromRequest: mocks.requireUserIdFromRequest,
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -29,7 +29,7 @@ import { GET } from "@/app/api/analytics/summary/route";
 describe("analytics summary route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.requireUserId.mockResolvedValue("user-1");
+    mocks.requireUserIdFromRequest.mockResolvedValue("user-1");
     mocks.findManyMeals.mockResolvedValue([]);
     mocks.findManyWorkouts.mockResolvedValue([]);
     mocks.findManyWeights.mockResolvedValue([]);

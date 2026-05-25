@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasProAccess, proRequiredResponse } from "@/lib/billing";
 import { buildUserContext } from "@/lib/ai/user-state";
@@ -24,10 +24,10 @@ function safeJsonParse(input: string) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const requestId = crypto.randomUUID();
-    const userId = await requireUserId();
+    const userId = await requireUserIdFromRequest(req);
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
     if (!user || !hasProAccess(user)) {
       return proRequiredResponse();

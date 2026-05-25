@@ -2,14 +2,14 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { barcodeImportSchema } from "@/lib/validators";
 import { fetchOpenFoodFactsProduct, normalizeBarcodeInput } from "@/lib/openFoodFacts";
 import type { FoodItemType } from "@/types";
 
 export async function POST(req: NextRequest) {
   try {
-    await requireUserId();
+    await requireUserIdFromRequest(req);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

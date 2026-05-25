@@ -1,15 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { addDays, startOfDay, toLocalDateKey } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
 /** Last 7 local days including today — total ml per day (missing days = 0). */
-export async function GET() {
+export async function GET(req: NextRequest) {
   let userId: string;
   try {
-    userId = await requireUserId();
+    userId = await requireUserIdFromRequest(req);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

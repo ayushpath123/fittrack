@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, Download, Upload } from "lucide-react";
 import { SettingsAppearance } from "@/components/SettingsAppearance";
+import { LeaderboardIdentityCard } from "@/components/LeaderboardIdentityCard";
 import { SignOutButton } from "@/components/SignOutButton";
 
 const inputFieldClass =
@@ -284,6 +285,12 @@ export default function SettingsPage() {
         <span className="text-gray-300 dark:text-slate-600" aria-hidden>
           ·
         </span>
+        <a href="#leaderboard" className="text-[#BEFF47] dark:text-[#B8E86A] font-medium hover:underline">
+          Ranks
+        </a>
+        <span className="text-gray-300 dark:text-slate-600" aria-hidden>
+          ·
+        </span>
         <a href="#daily-targets" className="text-[#BEFF47] dark:text-[#B8E86A] font-medium hover:underline">
           Targets
         </a>
@@ -403,6 +410,9 @@ export default function SettingsPage() {
         )}
       </div>
       <SettingsAppearance />
+      <div id="leaderboard" className="scroll-mt-28">
+        <LeaderboardIdentityCard />
+      </div>
       <div id="daily-targets" className="premium-card space-y-3 scroll-mt-28 rounded-2xl p-4">
         <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-slate-500">Daily targets</p>
         <div>

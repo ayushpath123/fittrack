@@ -5,12 +5,12 @@
 :root {
   /* Align with onboarding: deep base + lime accent + cool blue for water / secondary */
   --bg: #08090f;
-  --surface: #0d0e16;
-  --surface-2: #14151f;
-  --glass: rgba(255, 255, 255, 0.032);
-  --glass-hover: rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-hover: rgba(255, 255, 255, 0.14);
+  --surface: #0d0f18;
+  --surface-2: #151726;
+  --glass: rgba(255, 255, 255, 0.04);
+  --glass-hover: rgba(255, 255, 255, 0.075);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border-hover: rgba(255, 255, 255, 0.2);
   --accent: #beff47;
   --accent-hover: #ccff5a;
   --accent-on: #06080a;
@@ -25,8 +25,12 @@
   --red: #ff5c7a;
   --purple: #a78bfa;
   --white: #f4f4ff;
-  --muted: rgba(244, 244, 255, 0.45);
-  --hint: rgba(244, 244, 255, 0.25);
+  --muted: rgba(244, 244, 255, 0.58);
+  --hint: rgba(244, 244, 255, 0.34);
+  --radius-card: 20px;
+  --radius-control: 14px;
+  --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.28);
+  --shadow-glow: 0 0 0 1px rgba(190, 255, 71, 0.04), 0 18px 40px rgba(0, 0, 0, 0.34);
   --stagger-step: 60ms;
   --app-header-h: 60px;
   --app-bottom-nav-h: 72px;
@@ -64,9 +68,34 @@ body {
 .premium-card {
   background: var(--glass);
   border: 1px solid var(--glass-border);
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-soft);
+  transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.premium-card:hover {
+  background: var(--glass-hover);
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--shadow-glow);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition: all 160ms ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(190, 255, 71, 0.5);
+  outline-offset: 2px;
 }
 
 .text-accent {
@@ -114,17 +143,25 @@ body {
 .page-screen {
   position: relative;
   overflow: hidden;
-  border-radius: 28px;
-  padding: 16px 14px 92px;
-  background: rgba(13, 14, 22, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 30px;
+  padding: 18px 15px 94px;
+  background: linear-gradient(160deg, rgba(15, 17, 28, 0.88), rgba(11, 13, 22, 0.84));
+  border: 1px solid rgba(255, 255, 255, 0.09);
   min-height: calc(100dvh - var(--app-header-h));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
 }
 
 .page-screen-dashboard {
   padding-bottom: 8px;
+}
+
+.premium-surface {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-card);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02));
+  box-shadow: var(--shadow-soft);
 }
 
 /* iOS safe area for bottom nav */
@@ -350,6 +387,25 @@ body {
     opacity: 1;
     box-shadow: 0 0 8px currentColor;
   }
+}
+
+@keyframes game-hint-pop {
+  0% {
+    transform: scale(0.94);
+    opacity: 0.88;
+  }
+  55% {
+    transform: scale(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.game-hint-pop {
+  animation: game-hint-pop 0.65s cubic-bezier(0.34, 1.45, 0.64, 1) both;
 }
 
 @keyframes mesh-drift {

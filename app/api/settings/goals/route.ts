@@ -1,35 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { goalsPayloadSchema } from "@/lib/validators";
+import { getGoalsForUser, saveGoalsForUser } from "@/lib/domain/tracking";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   let userId: string;
   try {
-    userId = await requireUserId();
+    userId = await requireUserIdFromRequest(req);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const goals = await prisma.goalSetting.findUnique({ where: { userId } });
-  return NextResponse.json(
-    goals ?? {
-      calorieTarget: 1500,
-      proteinTarget: 110,
-      carbTarget: 180,
-      fatTarget: 55,
-      waterTargetMl: 2000,
-      reminderEnabled: false,
-      reminderTime: "09:00",
-    },
-  );
+  const goals = await getGoalsForUser(userId);
+  return NextResponse.json(goals);
 }
 
 export async function PUT(req: NextRequest) {
   let userId: string;
   try {
-    userId = await requireUserId();
+    userId = await requireUserIdFromRequest(req);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -38,11 +28,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Invalid goals payload", details: parsed.error.flatten() }, { status: 400 });
   }
   try {
-    const goals = await prisma.goalSetting.upsert({
-      where: { userId },
-      update: parsed.data,
-      create: { userId, ...parsed.data },
-    });
+    const goals = await saveGoalsForUser(userId, parsed.data);
     return NextResponse.json(goals);
   } catch (e) {
     console.error("[goals PUT]", e);

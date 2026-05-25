@@ -4,6 +4,11 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { WeightLogType } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
+import { GamificationPanel } from "@/components/GamificationPanel";
+import { InsightCallout } from "@/components/InsightCallout";
+import { PrimaryActionBar } from "@/components/PrimaryActionBar";
+import { ProgressSummaryCard } from "@/components/ProgressSummaryCard";
+import { SectionHeader } from "@/components/SectionHeader";
 import { Toast } from "@/components/Toast";
 import { WeightLineChart } from "@/components/WeightLineChart";
 
@@ -36,6 +41,17 @@ export function WeightClient({ initialLogs }: { initialLogs: WeightLogType[] }) 
   const min = weights.length ? Math.min(...weights) : 0;
   const max = weights.length ? Math.max(...weights) : 0;
   const change = weights.length > 1 ? weights[weights.length - 1] - weights[0] : 0;
+  const latestWeight = logs[logs.length - 1]?.weight ?? null;
+  const latestWaist = logs[logs.length - 1]?.waistCm ?? null;
+  const trendDirection = change < 0 ? "down" : change > 0 ? "up" : "flat";
+  const trendLabel =
+    weights.length > 1
+      ? trendDirection === "down"
+        ? "Moving down"
+        : trendDirection === "up"
+          ? "Moving up"
+          : "Stable"
+      : "Need more logs";
 
   async function logWeight() {
     const w = parseFloat(input);
@@ -136,15 +152,67 @@ export function WeightClient({ initialLogs }: { initialLogs: WeightLogType[] }) 
 
   return (
     <div className="space-y-4">
-      <Link
-        href="/analytics"
-        className="inline-flex items-center rounded-xl border border-[rgba(190,255,71,.32)] bg-[rgba(190,255,71,.12)] px-3 py-1.5 text-xs font-semibold text-[#B8E86A]"
-      >
-        Back to Stats
-      </Link>
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Weight</h1>
-        <p className="text-sm text-gray-500 dark:text-slate-400">Log and track trends</p>
+      <SectionHeader
+        eyebrow="Body metrics"
+        title="Weight"
+        subtitle="Log consistently and watch trend direction over daily noise."
+        action={
+          <Link
+            href="/analytics"
+            className="inline-flex min-h-10 items-center rounded-xl border border-[rgba(190,255,71,.32)] bg-[rgba(190,255,71,.12)] px-3 py-1.5 text-xs font-semibold text-[#B8E86A]"
+          >
+            Stats
+          </Link>
+        }
+      />
+      <GamificationPanel compact />
+      <PrimaryActionBar
+        title="Next best step"
+        subtitle="Log under similar conditions each day for cleaner comparisons."
+        action={
+          <button
+            disabled={isSaving}
+            onClick={logWeight}
+            className="rounded-xl bg-[#BEFF47] px-4 py-2 text-xs font-semibold text-[#06080A] min-h-10 disabled:opacity-40"
+          >
+            {isSaving ? "Saving..." : "Log now"}
+          </button>
+        }
+      />
+      <div className="premium-card card-entrance staggered rounded-2xl p-4" style={{ ["--stagger-base" as string]: "0ms", ["--stagger-index" as string]: 2 }}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-slate-500">Weight tracker</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              {weights.length > 1 ? `Based on ${weights.length} logs in this range` : "Add more logs to unlock stronger trend insight"}
+            </p>
+          </div>
+          <span className="rounded-lg border border-white/12 bg-white/[0.04] px-2 py-1 text-[10px] font-semibold text-[var(--muted)]">
+            {range === "7d" ? "7 days" : "30 days"}
+          </span>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5 text-center">
+            <p className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Current</p>
+            <p className="mt-1 text-base font-bold text-[var(--white)]">{latestWeight != null ? `${latestWeight.toFixed(1)} kg` : "—"}</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5 text-center">
+            <p className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Trend</p>
+            <p className="mt-1 text-base font-bold text-[var(--white)]">
+              {weights.length > 1 ? `${change > 0 ? "+" : ""}${change.toFixed(1)} kg` : "—"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5 text-center">
+            <p className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Waist</p>
+            <p className="mt-1 text-base font-bold text-[var(--white)]">{latestWaist != null && latestWaist > 0 ? `${latestWaist.toFixed(1)} cm` : "—"}</p>
+          </div>
+        </div>
+        <p className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2 text-xs text-[var(--muted)]">
+          <span className="font-semibold text-[var(--white)]">{trendLabel}.</span>{" "}
+          {weights.length > 1
+            ? "Use this with your nutrition and workout logs to understand what is driving changes."
+            : "Log consistently on similar conditions (same time of day) for clearer trends."}
+        </p>
       </div>
       <div className="premium-card card-entrance staggered rounded-2xl p-4" style={{ ["--stagger-base" as string]: "0ms", ["--stagger-index" as string]: 1 }}>
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-slate-500">Log today&apos;s weight</p>
@@ -163,7 +231,7 @@ export function WeightClient({ initialLogs }: { initialLogs: WeightLogType[] }) 
           <button
             disabled={isSaving}
             onClick={logWeight}
-            className="rounded-xl bg-[#BEFF47] px-5 py-2.5 font-medium text-[#06080A] transition-transform hover:bg-[#CCFF5A] active:scale-95 disabled:opacity-40"
+            className="rounded-xl bg-[#BEFF47] px-5 py-2.5 min-h-10 font-medium text-[#06080A] transition-transform hover:bg-[#CCFF5A] active:scale-95 disabled:opacity-40"
           >
             {isSaving ? "Saving..." : "Log"}
           </button>
@@ -183,23 +251,20 @@ export function WeightClient({ initialLogs }: { initialLogs: WeightLogType[] }) 
         <Toast message={undoMessage} type="info" actionLabel="Undo" onAction={undoDeleteLog} />
       </div>
 
-      <div className="grid grid-cols-4 gap-2 card-entrance staggered" style={{ ["--stagger-base" as string]: "0ms", ["--stagger-index" as string]: 2 }}>
-        {[
-          { label: "Current", value: `${weights[weights.length - 1] ?? "-"}` },
-          { label: "Lowest", value: `${weights.length ? min : "-"}` },
-          { label: "Highest", value: `${weights.length ? max : "-"}` },
-          { label: "Change", value: `${weights.length ? `${change >= 0 ? "+" : ""}${change.toFixed(1)}` : "-"}` },
-        ].map((s) => (
-          <div key={s.label} className="premium-card rounded-2xl p-3 text-center">
-            <p className="text-xs text-gray-400">{s.label}</p>
-            <p className="text-sm font-bold text-gray-900 mt-0.5">{s.value}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-2 card-entrance staggered sm:grid-cols-4" style={{ ["--stagger-base" as string]: "0ms", ["--stagger-index" as string]: 3 }}>
+        <ProgressSummaryCard label="Current" value={`${weights[weights.length - 1] ?? "-"} kg`} />
+        <ProgressSummaryCard label="Lowest" value={`${weights.length ? min.toFixed(1) : "-"} kg`} progressTone="blue" />
+        <ProgressSummaryCard label="Highest" value={`${weights.length ? max.toFixed(1) : "-"} kg`} progressTone="amber" />
+        <ProgressSummaryCard
+          label="Change"
+          value={`${weights.length ? `${change >= 0 ? "+" : ""}${change.toFixed(1)}` : "-"} kg`}
+          progressTone={change <= 0 ? "green" : "amber"}
+        />
       </div>
 
       <div
         className="card-entrance staggered flex rounded-xl border border-white/[0.08] bg-white/[0.04] p-1"
-        style={{ ["--stagger-base" as string]: "0ms", ["--stagger-index" as string]: 3 }}
+        style={{ ["--stagger-base" as string]: "0ms", ["--stagger-index" as string]: 4 }}
       >
         {(["7d", "30d"] as const).map((r) => (
           <button
@@ -216,11 +281,11 @@ export function WeightClient({ initialLogs }: { initialLogs: WeightLogType[] }) 
         ))}
       </div>
 
-      <div className="premium-card card-entrance staggered min-w-0 rounded-2xl p-4 dark:bg-slate-900/80" style={{ ["--stagger-base" as string]: "0ms", ["--stagger-index" as string]: 4 }}>
+      <div className="premium-card card-entrance staggered min-w-0 rounded-2xl p-4 dark:bg-slate-900/80" style={{ ["--stagger-base" as string]: "0ms", ["--stagger-index" as string]: 5 }}>
         {filtered.length > 0 ? <WeightLineChart logs={filtered} /> : null}
       </div>
 
-      <div className="premium-card card-entrance staggered overflow-hidden rounded-2xl" style={{ ["--stagger-base" as string]: "0ms", ["--stagger-index" as string]: 5 }}>
+      <div className="premium-card card-entrance staggered overflow-hidden rounded-2xl" style={{ ["--stagger-base" as string]: "0ms", ["--stagger-index" as string]: 6 }}>
         {[...filtered].reverse().map((l, i, arr) => {
           const prev = arr[i + 1];
           const diff = prev ? l.weight - prev.weight : null;
@@ -251,6 +316,10 @@ export function WeightClient({ initialLogs }: { initialLogs: WeightLogType[] }) 
           );
         })}
       </div>
+      <InsightCallout
+        title="Consistency beats perfection"
+        body="A steady 7-day direction matters more than one-day spikes caused by hydration, stress, or sleep."
+      />
       {!logs.length && <EmptyState title="No weight logs" subtitle="Log your weight to unlock trend insights." />}
     </div>
   );

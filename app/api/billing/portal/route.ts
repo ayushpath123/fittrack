@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { getStripe, appOrigin } from "@/lib/stripe";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
-    const userId = await requireUserId();
+    const userId = await requireUserIdFromRequest(req);
     const stripe = getStripe();
     if (!stripe) {
       return NextResponse.json({ error: "Billing is not configured (Stripe)." }, { status: 503 });

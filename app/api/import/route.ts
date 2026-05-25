@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 import { importRequestSchema } from "@/lib/validators";
 import { executeBackupImport } from "@/lib/importBackup";
 
@@ -8,7 +8,7 @@ const MAX_IMPORT_ROWS = 5000;
 export async function POST(req: NextRequest) {
   let userId: string;
   try {
-    userId = await requireUserId();
+    userId = await requireUserIdFromRequest(req);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

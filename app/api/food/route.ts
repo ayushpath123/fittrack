@@ -1,12 +1,12 @@
 export const dynamic = "force-dynamic";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdFromRequest } from "@/lib/auth";
 
 export const revalidate = 86400;
 
-export async function GET(req: Request) {
-  const userId = await requireUserId();
+export async function GET(req: NextRequest) {
+  const userId = await requireUserIdFromRequest(req);
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim() ?? "";
   const limitParam = Number(searchParams.get("limit") ?? 50);
@@ -45,9 +45,9 @@ export async function GET(req: Request) {
   return NextResponse.json({ foods, templates });
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const userId = await requireUserId();
+    const userId = await requireUserIdFromRequest(req);
     const body = (await req.json()) as {
       name?: string;
       mealType?: string;
