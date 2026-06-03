@@ -17,6 +17,17 @@ describe("api payload validators", () => {
     expect(mealPayloadSchema.safeParse(payload).success).toBe(true);
   });
 
+  it("accepts macro-only meal payload", () => {
+    expect(
+      mealPayloadSchema.safeParse({
+        date: "2026-01-01",
+        mealType: "lunch",
+        items: [],
+        macros: { calories: 520, protein: 40, carbs: 55, fat: 14 },
+      }).success,
+    ).toBe(true);
+  });
+
   it("rejects invalid workout payload", () => {
     const payload = { date: "2026-01-01", exercises: [] };
     expect(workoutPayloadSchema.safeParse(payload).success).toBe(false);

@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid meal payload", details: parsed.error.flatten() }, { status: 400 });
   }
-  const { date, mealType, items, estimateId } = parsed.data as { date: string; mealType: string; items: MealItem[]; estimateId?: string };
-  const result = await createMealForDay({ userId, date, mealType, items, estimateId });
+  const { date, mealType, items, estimateId, macros } = parsed.data;
+  const result = await createMealForDay({ userId, date, mealType, items, estimateId, macros });
   if ("error" in result && result.error) {
     return NextResponse.json(
       { error: result.error.message },

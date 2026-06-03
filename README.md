@@ -10,7 +10,21 @@ FitTrack is a Next.js web app for tracking meals, workouts, weight, hydration, a
 npm install
 ```
 
-2. Configure environment variables in `.env`.
+2. Copy `.env.example` to `.env` and set `DATABASE_URL`.
+
+   **India / Neon unreachable:** use local Postgres (starts once, keeps running):
+
+   ```bash
+   npm run db:setup
+   ```
+
+   That uses Docker Postgres on `localhost:5432`. Your `.env` should have:
+
+   ```env
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/fittrack"
+   ```
+
+   Or use [Supabase](https://supabase.com) (no Docker): in **Connect**, use the **pooler** strings (not `db.*.supabase.co` — IPv6-only). Set both `DATABASE_URL` (port 6543) and `DIRECT_URL` (port 5432) in `.env`, then `npm run db:migrate`.
 
 3. Run the app:
 

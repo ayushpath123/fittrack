@@ -11,12 +11,24 @@ export const mealItemSchema = z.object({
   multiplier: z.number().positive().optional(),
 });
 
-export const mealPayloadSchema = z.object({
-  date: z.string().min(1),
-  mealType: z.string().min(1),
-  items: z.array(mealItemSchema).default([]),
-  estimateId: z.string().min(1).optional(),
+export const macroSnapshotSchema = z.object({
+  calories: z.number().nonnegative(),
+  protein: z.number().nonnegative(),
+  carbs: z.number().nonnegative(),
+  fat: z.number().nonnegative(),
 });
+
+export const mealPayloadSchema = z
+  .object({
+    date: z.string().min(1),
+    mealType: z.string().min(1),
+    items: z.array(mealItemSchema).default([]),
+    estimateId: z.string().min(1).optional(),
+    macros: macroSnapshotSchema.optional(),
+  })
+  .refine((d) => d.items.length > 0 || d.estimateId || d.macros, {
+    message: "Provide food items, macros, or an estimate.",
+  });
 
 export const aiEstimateUpdateSchema = z.object({
   calories: z.number().nonnegative().optional(),

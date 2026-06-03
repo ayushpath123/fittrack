@@ -2,12 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { endOfDay, startOfDay } from "@/lib/date";
 import { WorkoutClient } from "./WorkoutClient";
 import { WorkoutType } from "@/types";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdForPage } from "@/lib/auth";
 import { toLocalDateKey } from "@/lib/date";
 import { buildExerciseLastHints } from "@/lib/workoutHints";
 
 export default async function WorkoutPage() {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForPage();
   const today = new Date();
   const todayKey = toLocalDateKey(today);
   const workout = await prisma.workout.findFirst({

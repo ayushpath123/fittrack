@@ -1,7 +1,7 @@
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdForPage } from "@/lib/auth";
 import { GameModeClient } from "./GameModeClient";
 
 export default async function GameModePage() {
-  await requireUserId();
+  await requireUserIdForPage();
   return <GameModeClient />;
 }

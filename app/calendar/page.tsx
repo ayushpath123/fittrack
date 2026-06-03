@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Dumbbell } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdForPage } from "@/lib/auth";
 import { toLocalDateKey } from "@/lib/date";
 
 export default async function CalendarPage() {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForPage();
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();

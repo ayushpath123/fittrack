@@ -2,10 +2,10 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { endOfDay, startOfDay, toLocalDateKey } from "@/lib/date";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdForPage } from "@/lib/auth";
 
 export default async function DayPage({ params }: { params: Promise<{ date: string }> }) {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForPage();
   const { date: dateParam } = await params;
   const date = new Date(`${dateParam}T12:00:00`);
   const dayKey = dateParam.slice(0, 10);

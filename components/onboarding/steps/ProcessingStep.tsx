@@ -186,7 +186,7 @@ export default function ProcessingStep({ direction, results, onDashboard }: Proc
                 onClick={onDashboard}
                 className="w-full cursor-pointer rounded-2xl bg-[#BEFF47] py-4 text-[15px] font-medium text-[#06080A] transition-all hover:-translate-y-px hover:bg-[#CCFF5A] hover:shadow-[0_6px_28px_rgba(190,255,71,.28)] active:translate-y-0"
               >
-                Open Dashboard →
+                Log first meal →
               </motion.button>
             </motion.div>
           )}

@@ -156,13 +156,33 @@ export function getAuthSession() {
   return getServerSession(authOptions);
 }
 
+export class StaleSessionError extends Error {
+  constructor() {
+    super("StaleSession");
+    this.name = "StaleSessionError";
+  }
+}
+
 export async function requireUserId() {
   const session = await getAuthSession();
   const userId = session?.user?.id;
   if (!userId) throw new Error("Unauthorized");
   const row = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-  if (!row) throw new Error("Unauthorized");
+  if (!row) throw new StaleSessionError();
   return userId;
+}
+
+/** Use in Server Components — sends stale/missing sessions to login. */
+export async function requireUserIdForPage() {
+  const { redirect } = await import("next/navigation");
+  try {
+    return await requireUserId();
+  } catch (e) {
+    if (e instanceof StaleSessionError || (e instanceof Error && e.message === "Unauthorized")) {
+      redirect("/login?reason=session");
+    }
+    throw e;
+  }
 }
 
 export function getBearerToken(req: NextRequest) {

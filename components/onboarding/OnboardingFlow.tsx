@@ -13,6 +13,7 @@ import WeightStep from "./steps/WeightStep";
 import HeightStep from "./steps/HeightStep";
 import GoalStep from "./steps/GoalStep";
 import ProcessingStep from "./steps/ProcessingStep";
+import FirstLogStep from "./steps/FirstLogStep";
 import type { Goal, MacroResults } from "./types";
 
 export type { Goal, MacroResults } from "./types";
@@ -77,7 +78,7 @@ function calculateMacros(weight: number, height: number, goal: Goal): MacroResul
   };
 }
 
-const PROGRESS_MAP: Record<number, number> = { 0: 0, 1: 28, 2: 56, 3: 82, 4: 100 };
+const PROGRESS_MAP: Record<number, number> = { 0: 0, 1: 24, 2: 48, 3: 72, 4: 88, 5: 100 };
 
 export default function OnboardingFlow() {
   const router = useRouter();
@@ -174,10 +175,13 @@ export default function OnboardingFlow() {
     }
   }, [state.goal, state.weight, state.height, goTo, router]);
 
-  const handleDashboard = useCallback(() => {
-    // Full navigation so the server sees the new GoalSetting row (avoids RSC cache sending you back to /onboarding).
-    window.location.assign("/dashboard");
+  const handleFirstLogDone = useCallback(() => {
+    window.location.assign("/dashboard?welcome=1");
   }, []);
+
+  const handleGoToFirstLog = useCallback(() => {
+    goTo(5);
+  }, [goTo]);
 
   const { step, direction, weight, height, goal, results } = state;
 
@@ -255,7 +259,10 @@ export default function OnboardingFlow() {
               />
             )}
             {step === 4 && (
-              <ProcessingStep key="processing" direction={direction} results={results} onDashboard={handleDashboard} />
+              <ProcessingStep key="processing" direction={direction} results={results} onDashboard={handleGoToFirstLog} />
+            )}
+            {step === 5 && results && (
+              <FirstLogStep key="firstlog" direction={direction} results={results} onDone={handleFirstLogDone} />
             )}
           </AnimatePresence>
         </div>

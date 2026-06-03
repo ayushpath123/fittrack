@@ -63,8 +63,15 @@ export function DailyReminder() {
       if (lastFireKeyRef.current === key) return;
       lastFireKeyRef.current = key;
 
+      const remainingRaw = sessionStorage.getItem("fittrack-remaining-kcal");
+      const remaining = remainingRaw ? Number(remainingRaw) : NaN;
+      const body =
+        Number.isFinite(remaining) && remaining > 0
+          ? `You have about ${Math.round(remaining)} kcal left today — log your next meal.`
+          : "Time to log meals — one tap from Today or Log.";
+
       new Notification("FitTrack", {
-        body: "Log meals, weight, or a quick workout to stay on track.",
+        body,
       });
     }, 30_000);
 

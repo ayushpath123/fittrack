@@ -52,27 +52,47 @@ export async function POST(req: NextRequest) {
       name?: string;
       mealType?: string;
       items?: { foodId: string; quantityMultiplier: number }[];
+      macros?: { calories: number; protein: number; carbs: number; fat: number };
     };
 
     const name = body.name?.trim();
     const items = Array.isArray(body.items) ? body.items : [];
+    const macros = body.macros;
 
     if (!name || name.length < 2) {
       return NextResponse.json({ error: "Template name is required." }, { status: 400 });
     }
-    if (items.length === 0) {
-      return NextResponse.json({ error: "Select at least one item." }, { status: 400 });
-    }
 
-    const cleaned = items
-      .filter((i) => typeof i.foodId === "string" && i.foodId.length > 0 && Number.isFinite(i.quantityMultiplier) && i.quantityMultiplier > 0)
-      .map((i) => ({
-        foodId: i.foodId,
-        quantityMultiplier: Math.round(i.quantityMultiplier * 1000) / 1000,
-      }));
+    let storedItems: unknown;
+    if (
+      macros &&
+      Number.isFinite(macros.calories) &&
+      Number.isFinite(macros.protein) &&
+      Number.isFinite(macros.carbs) &&
+      Number.isFinite(macros.fat)
+    ) {
+      storedItems = [{ kind: "macros", ...macros }];
+    } else {
+      if (items.length === 0) {
+        return NextResponse.json({ error: "Provide macros or at least one food item." }, { status: 400 });
+      }
+      const cleaned = items
+        .filter(
+          (i) =>
+            typeof i.foodId === "string" &&
+            i.foodId.length > 0 &&
+            Number.isFinite(i.quantityMultiplier) &&
+            i.quantityMultiplier > 0,
+        )
+        .map((i) => ({
+          foodId: i.foodId,
+          quantityMultiplier: Math.round(i.quantityMultiplier * 1000) / 1000,
+        }));
 
-    if (cleaned.length === 0) {
-      return NextResponse.json({ error: "Invalid template items." }, { status: 400 });
+      if (cleaned.length === 0) {
+        return NextResponse.json({ error: "Invalid template items." }, { status: 400 });
+      }
+      storedItems = cleaned;
     }
 
     const created = await prisma.mealTemplate.create({
@@ -80,7 +100,7 @@ export async function POST(req: NextRequest) {
         name,
         userId,
         mealType: body.mealType?.trim() || null,
-        items: cleaned,
+        items: storedItems as object,
       },
     });
 

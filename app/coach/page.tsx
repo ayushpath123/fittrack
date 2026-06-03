@@ -1,7 +1,7 @@
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdForPage } from "@/lib/auth";
 import { CoachClient } from "./CoachClient";
 
 export default async function CoachPage() {
-  await requireUserId();
+  await requireUserIdForPage();
   return <CoachClient />;
 }

@@ -3,25 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Activity,
-  BarChart2,
   Dumbbell,
   LayoutDashboard,
-  Medal,
-  Trophy,
-  Sparkles,
+  MoreHorizontal,
+  Scale,
   Utensils,
 } from "lucide-react";
 
 const tabs = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/activity", label: "Activity", icon: Activity },
-  { href: "/meals", label: "Meals", icon: Utensils },
-  { href: "/workout", label: "Lift", icon: Dumbbell },
-  { href: "/game", label: "Game", icon: Trophy },
-  { href: "/leaderboards", label: "Ranks", icon: Medal },
-  { href: "/analytics", label: "Stats", icon: BarChart2 },
-  { href: "/coach", label: "Coach", icon: Sparkles },
+  { href: "/dashboard", label: "Today", icon: LayoutDashboard },
+  { href: "/meals", label: "Calories", icon: Utensils },
+  { href: "/workout", label: "Workout", icon: Dumbbell },
+  { href: "/weight", label: "Weight", icon: Scale },
+  { href: "/activity", label: "More", icon: MoreHorizontal },
 ];
 
 export function BottomNav() {
@@ -36,9 +30,14 @@ export function BottomNav() {
         WebkitBackdropFilter: "blur(26px)",
       }}
     >
-      <div className="mx-auto flex h-[var(--app-bottom-nav-h)] w-full overflow-x-auto pb-safe [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mx-auto flex h-[var(--app-bottom-nav-h)] w-full max-w-md pb-safe">
         {tabs.map(({ href, label, icon: Icon }) => {
-          const active = path.startsWith(href);
+          const active =
+            href === "/activity"
+              ? ["/activity", "/analytics", "/calendar", "/game", "/leaderboards", "/coach", "/settings"].some((p) =>
+                  path.startsWith(p),
+                )
+              : path.startsWith(href);
           return (
             <Link
               key={href}

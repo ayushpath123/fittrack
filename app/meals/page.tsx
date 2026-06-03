@@ -1,18 +1,28 @@
 import { prisma } from "@/lib/prisma";
 import { endOfDay, startOfDay } from "@/lib/date";
+import { buildLoggableTemplates, normalizeMealType } from "@/lib/meal-templates";
 import { MealsClient } from "./MealsClient";
-import { FoodItemType, MealEntryType, MealEstimateType, MealItem, MealTemplateType } from "@/types";
-import { requireUserId } from "@/lib/auth";
+import { FoodItemType, MealEntryType, MealItem, MealTemplateType } from "@/types";
+import { requireUserIdForPage } from "@/lib/auth";
 
-export default async function MealsPage() {
-  const userId = await requireUserId();
+const MEAL_SLOTS = ["breakfast", "lunch", "snack", "dinner"] as const;
+
+export default async function MealsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ slot?: string }>;
+}) {
+  const userId = await requireUserIdForPage();
+  const sp = await searchParams;
+  const slotRaw = sp.slot ? normalizeMealType(sp.slot) : undefined;
+  const initialSlot = MEAL_SLOTS.includes(slotRaw as (typeof MEAL_SLOTS)[number])
+    ? slotRaw
+    : undefined;
   const today = new Date();
-  const FOOD_CATALOG_LIMIT = 120;
-  const [entries, foods, templates, goals, estimates] = await Promise.all([
+  const [entries, foods, templates, goals] = await Promise.all([
     prisma.mealEntry.findMany({ where: { userId, date: { gte: startOfDay(today), lte: endOfDay(today) } }, orderBy: { date: "asc" } }),
     prisma.foodItem.findMany({
       orderBy: { name: "asc" },
-      take: FOOD_CATALOG_LIMIT,
       select: {
         id: true,
         name: true,
@@ -28,8 +38,15 @@ export default async function MealsPage() {
     }),
     prisma.mealTemplate.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
     prisma.goalSetting.findUnique({ where: { userId } }),
-    prisma.mealEstimate.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 8 }),
   ]);
+
+  const targets = {
+    calories: goals?.calorieTarget ?? 1500,
+    protein: goals?.proteinTarget ?? 110,
+    carbs: goals?.carbTarget ?? 180,
+    fat: goals?.fatTarget ?? 55,
+  };
+
   const initialEntries: MealEntryType[] = entries.map((e) => ({
     ...e,
     date: e.date.toISOString(),
@@ -38,23 +55,19 @@ export default async function MealsPage() {
     totalFat: e.totalFat ?? 0,
     estimateId: e.estimateId ?? null,
   }));
-  const typedFoods = foods as unknown as FoodItemType[];
-  const typedTemplates = templates as unknown as MealTemplateType[];
-  const typedEstimates = estimates.map((e) => ({
-    ...e,
-    createdAt: e.createdAt.toISOString(),
-    updatedAt: e.updatedAt.toISOString(),
-  })) as MealEstimateType[];
+
+  const logTemplates = buildLoggableTemplates(
+    targets,
+    templates as unknown as MealTemplateType[],
+    foods as unknown as FoodItemType[],
+  );
+
   return (
     <MealsClient
       initialEntries={initialEntries}
-      foods={typedFoods}
-      templates={typedTemplates}
-      initialEstimates={typedEstimates}
-      calorieTarget={goals?.calorieTarget ?? 1500}
-      proteinTarget={goals?.proteinTarget ?? 110}
-      carbTarget={goals?.carbTarget ?? 180}
-      fatTarget={goals?.fatTarget ?? 55}
+      logTemplates={logTemplates}
+      targets={targets}
+      initialSlot={initialSlot}
     />
   );
 }

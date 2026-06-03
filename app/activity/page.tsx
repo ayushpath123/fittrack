@@ -3,11 +3,14 @@ import { endOfDay, getDaysAgo, startOfDay, toLocalDateKey } from "@/lib/date";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BarChart2, Calendar, ChevronRight, Footprints, Medal, Moon, Scale, Smartphone, Trophy } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdForPage } from "@/lib/auth";
 import { SectionHeader } from "@/components/SectionHeader";
 import { buildLegacyGamificationSummary } from "@/lib/gamification-legacy";
 import { buildActivityFeed } from "@/lib/activity-timeline";
 import { DashboardActivityFeed } from "@/components/dashboard/DashboardActivityFeed";
+import { mealLoggingStreakFromDayKeys } from "@/lib/meal-logging-streak";
+import { rewardsUnlocked, REWARDS_UNLOCK_STREAK } from "@/lib/rewards-unlock";
+import { Lock } from "lucide-react";
 
 function inTimeRangeMs(date: Date, from: Date, to: Date) {
   const t = date.getTime();
@@ -15,7 +18,7 @@ function inTimeRangeMs(date: Date, from: Date, to: Date) {
 }
 
 export default async function ActivityPage() {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForPage();
   const today = new Date();
   const dayStart = startOfDay(today);
   const weekStart = getDaysAgo(6);
@@ -122,11 +125,18 @@ export default async function ActivityPage() {
     limit: 24,
   });
 
+  const mealLogStreak = mealLoggingStreakFromDayKeys(mealDays);
+  const unlockRewards = rewardsUnlocked(mealLogStreak);
+
   const shortcuts = [
     { href: "/analytics", label: "Analytics", hint: "Trends & charts", icon: BarChart2 },
     { href: "/calendar", label: "Calendar", hint: "Day history", icon: Calendar },
-    { href: "/leaderboards", label: "Global ranks", hint: "Monthly XP ladder", icon: Medal },
-    { href: "/game", label: "Arena", hint: "Quests & XP", icon: Trophy },
+    ...(unlockRewards
+      ? ([
+          { href: "/leaderboards", label: "Global ranks", hint: "Monthly XP ladder", icon: Medal },
+          { href: "/game", label: "Arena", hint: "Quests & XP", icon: Trophy },
+        ] as const)
+      : []),
     { href: "/weight", label: "Weight", hint: "Scale trend", icon: Scale },
   ] as const;
 
@@ -134,9 +144,9 @@ export default async function ActivityPage() {
     <div className="flex min-h-[calc(100dvh-var(--app-header-h)-var(--app-bottom-nav-h)-1.25rem)] flex-col pb-2">
       <SectionHeader
         className="mb-3"
-        eyebrow="Deep view"
-        title="Activity"
-        subtitle="Consistency, recovery signals, and full feed — without crowding Home."
+        eyebrow="Extras"
+        title="More"
+        subtitle="Stats, game, calendar, and your full activity feed."
         action={
           <Link
             href="/dashboard"
@@ -191,6 +201,21 @@ export default async function ActivityPage() {
           Training <span className="num">{summary.workoutStreak}d</span>
         </p>
       </div>
+
+      {!unlockRewards ? (
+        <div className="mb-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3">
+          <div className="flex gap-2">
+            <Lock size={16} className="shrink-0 text-[var(--muted)]" aria-hidden />
+            <div>
+              <p className="text-xs font-semibold text-[var(--white)]">Rewards unlock soon</p>
+              <p className="mt-0.5 text-[10px] text-[var(--muted)]">
+                Log meals {REWARDS_UNLOCK_STREAK} days in a row to unlock Arena and leaderboards. Streak: {mealLogStreak}/
+                {REWARDS_UNLOCK_STREAK}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-4">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">Shortcuts</p>

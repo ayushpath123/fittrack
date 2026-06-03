@@ -4,12 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Plus, Trash2 } from "lucide-react";
 import { ExerciseEntryType, WorkoutType } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
-import { GamificationPanel } from "@/components/GamificationPanel";
-import { InsightCallout } from "@/components/InsightCallout";
-import { PrimaryActionBar } from "@/components/PrimaryActionBar";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Toast } from "@/components/Toast";
-import { StatBanner } from "@/components/StatBanner";
 
 const PRESET_EXERCISES = [
   "Bench Press",
@@ -191,34 +187,19 @@ export function WorkoutClient({
 
   return (
     <div className="space-y-4">
-      <GamificationPanel compact />
       {!started ? (
         <>
           <SectionHeader
-            eyebrow="Training day"
-            title="Lift"
-            subtitle="Start a focused session or reuse a recent template."
+            eyebrow="Training"
+            title="Workout"
+            subtitle="Start empty or copy your last session."
           />
-          <StatBanner
-            label="Training baseline"
-            color="green"
-            stats={[
-              { value: `${recentWorkouts.length}`, sub: "recent sessions" },
-              { value: `${Object.keys(exerciseHints).length}`, sub: "exercise hints" },
-            ]}
-          />
-          <PrimaryActionBar
-            title="Next best step"
-            subtitle="Start today with one exercise. You can expand after you begin."
-            action={
-              <button
-                onClick={() => setStarted(true)}
-                className="rounded-xl bg-[#BEFF47] px-4 py-2 text-xs font-semibold text-[#06080A] min-h-10 transition-transform hover:bg-[#CCFF5A] active:scale-95"
-              >
-                Start workout
-              </button>
-            }
-          />
+          <button
+            onClick={() => setStarted(true)}
+            className="w-full min-h-12 rounded-xl bg-[#BEFF47] py-3 text-sm font-semibold text-[#06080A] transition-transform active:scale-95"
+          >
+            Start today&apos;s workout
+          </button>
           <h2 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)]">Recent</h2>
           {recentWorkouts.map((w) => (
             <div key={w.id} className="premium-card mb-3 flex flex-col gap-2 rounded-2xl p-4">
@@ -244,10 +225,6 @@ export function WorkoutClient({
               </button>
             </div>
           ))}
-          <InsightCallout
-            title="Momentum rule"
-            body="If motivation is low, copy your last workout and complete just the first two exercises."
-          />
           {!recentWorkouts.length && <EmptyState title="No workout history" subtitle="Start your first workout to build consistency." />}
         </>
       ) : (
@@ -266,18 +243,6 @@ export function WorkoutClient({
               </button>
             )}
           </div>
-          <StatBanner
-            label="Today's plan"
-            color="blue"
-            stats={[
-              { value: `${draftExercises.length}`, sub: "exercises" },
-              {
-                value: `${Math.round(draftExercises.reduce((s, ex) => s + ex.sets, 0))}`,
-                sub: "total sets",
-              },
-            ]}
-          />
-
           {workout?.completed && (
             <div className="flex items-center justify-between rounded-2xl bg-green-100 p-4 dark:bg-emerald-950/35">
               <div>

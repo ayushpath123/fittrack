@@ -1,10 +1,13 @@
 import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { updateSession } from "@/utils/supabase/middleware";
 
 const authRoutes = ["/login", "/signup"];
 
 export default withAuth(
-  function middleware(req) {
+  async function middleware(req) {
+    const supabaseResponse = await updateSession(req as NextRequest);
+
     const isAuthenticated = !!req.nextauth.token;
     const isAuthRoute = authRoutes.some((route) => req.nextUrl.pathname.startsWith(route));
 
@@ -12,7 +15,7 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    return NextResponse.next();
+    return supabaseResponse;
   },
   {
     pages: {

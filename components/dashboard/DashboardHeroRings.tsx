@@ -21,13 +21,13 @@ export function DashboardHeroRings({ rings }: { rings: HeroRingSpec[] }) {
       <div className="mb-2 flex items-end justify-between gap-2 px-0.5">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Live vitals</p>
-          <p className="mt-0.5 text-[11px] text-[var(--hint)]">Fuel · Protein · Water</p>
+          <p className="mt-0.5 text-[11px] text-[var(--hint)]">Calories · Protein · Water</p>
         </div>
         <Link
-          href="/activity"
+          href="/analytics"
           className="inline-flex shrink-0 items-center gap-0.5 rounded-lg py-1 pl-2 text-[10px] font-semibold uppercase tracking-widest text-[#B8E86A] transition-colors hover:text-[#BEFF47]"
         >
-          Activity
+          Stats
           <ChevronRight size={12} className="opacity-70" aria-hidden />
         </Link>
       </div>

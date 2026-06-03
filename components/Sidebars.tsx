@@ -7,12 +7,10 @@ import {
   Calendar,
   Camera,
   ChevronRight,
-  Dumbbell,
   Download,
   EllipsisVertical,
   Flame,
   LogOut,
-  Medal,
   Target,
   TrendingUp,
   Zap,
@@ -25,15 +23,11 @@ import toast from "react-hot-toast";
 
 const profileMenuLinks = [
   { href: "/dashboard", label: "Home", hint: "Today snapshot", icon: TrendingUp },
-  { href: "/activity", label: "Activity", hint: "Rhythm, feed, wearables (soon)", icon: Activity },
-  { href: "/leaderboards", label: "Global ranks", hint: "Monthly XP ladder", icon: Medal },
-  { href: "/meals", label: "Meals", hint: "Log and review intake", icon: Camera },
-  { href: "/workout", label: "Workout", hint: "Sessions & exercises", icon: Dumbbell },
-  { href: "/weight", label: "Weight", hint: "Track scale trend", icon: TrendingUp },
+  { href: "/activity", label: "Activity & game", hint: "Feed, XP, leaderboards", icon: Activity },
+  { href: "/analytics", label: "Stats", hint: "Trends & adherence", icon: Zap },
   { href: "/calendar", label: "Calendar", hint: "Day-by-day history", icon: Calendar },
-  { href: "/analytics", label: "Stats overview", hint: "Trends & adherence", icon: TrendingUp },
-  { href: "/settings", label: "Goals & profile", hint: "Calories, protein, preferences", icon: Target },
-  { href: "/analytics", label: "Daily / weekly / monthly", hint: "Switch views in one Stats page", icon: Zap },
+  { href: "/coach", label: "AI Coach", hint: "Personal guidance", icon: Camera },
+  { href: "/settings", label: "Goals & profile", hint: "Targets & preferences", icon: Target },
   { href: "/settings#your-data", label: "Export & backup", hint: "JSON or CSV downloads", icon: Download },
 ] as const;
 

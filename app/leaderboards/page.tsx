@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Crown, Medal, Sparkles, Trophy } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireUserIdForPage } from "@/lib/auth";
 import { loadGamificationSummaryForUser } from "@/lib/gamification-load";
 import { fetchLeaderboardTop, getCurrentSeasonKey, syncLeaderboardAndGetStandings } from "@/lib/leaderboard";
 import { prisma } from "@/lib/prisma";
@@ -14,7 +14,7 @@ function tierStyle(rank: number) {
 }
 
 export default async function LeaderboardsPage() {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForPage();
   const seasonKey = getCurrentSeasonKey();
   const summary = await loadGamificationSummaryForUser(userId);
   const standings = await syncLeaderboardAndGetStandings(prisma, userId, summary.xp);

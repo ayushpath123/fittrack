@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { calculateMealTotals } from "@/lib/calculations";
 import { endOfDay, getDaysAgo, startOfDay } from "@/lib/date";
+import { ensureDefaultMealTemplates } from "@/lib/default-meal-templates";
+import type { MacroSnapshot } from "@/lib/meal-templates";
 import type { ExerciseEntryType, FoodItemType, MealItem } from "@/types";
 
 export async function listMealsForDate(userId: string, dateStr?: string) {
@@ -20,19 +22,27 @@ export async function createMealForDay(params: {
   mealType: string;
   items: MealItem[];
   estimateId?: string;
+  macros?: MacroSnapshot;
 }) {
-  const { userId, date, mealType, items, estimateId } = params;
+  const { userId, date, mealType, items, estimateId, macros } = params;
 
-  if (items.length === 0 && !estimateId) {
-    return { error: { status: 400, message: "At least one item or estimateId is required." } as const };
+  if (items.length === 0 && !estimateId && !macros) {
+    return { error: { status: 400, message: "Provide food items, macros, or an estimate." } as const };
   }
 
   let totalCalories = 0;
   let totalProtein = 0;
   let totalCarbs = 0;
   let totalFat = 0;
+  let storedItems: MealItem[] | Prisma.JsonArray = items as unknown as Prisma.JsonArray;
 
-  if (items.length > 0) {
+  if (macros) {
+    totalCalories = macros.calories;
+    totalProtein = macros.protein;
+    totalCarbs = macros.carbs;
+    totalFat = macros.fat;
+    storedItems = [{ kind: "macros", ...macros }] as unknown as Prisma.JsonArray;
+  } else if (items.length > 0) {
     const foods = await prisma.foodItem.findMany({ where: { id: { in: items.map((i) => i.foodId) } } });
     const totals = calculateMealTotals(foods as unknown as FoodItemType[], items);
     totalCalories = totals.totalCalories;
@@ -60,7 +70,7 @@ export async function createMealForDay(params: {
       date: mealDate,
       mealType,
       estimateId: estimateId ?? null,
-      items: items as unknown as Prisma.JsonArray,
+      items: storedItems,
       totalCalories,
       totalProtein,
       totalCarbs,
@@ -152,9 +162,18 @@ export async function getGoalsForUser(userId: string) {
 }
 
 export async function saveGoalsForUser(userId: string, payload: Record<string, unknown>) {
-  return prisma.goalSetting.upsert({
+  const goals = await prisma.goalSetting.upsert({
     where: { userId },
     update: payload,
     create: { userId, ...payload },
   });
+
+  await ensureDefaultMealTemplates(userId, {
+    calories: goals.calorieTarget,
+    protein: goals.proteinTarget,
+    carbs: goals.carbTarget,
+    fat: goals.fatTarget,
+  });
+
+  return goals;
 }
