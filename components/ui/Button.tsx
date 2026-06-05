@@ -27,17 +27,17 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const base =
-      "inline-flex items-center justify-center gap-2.5 font-medium rounded-xl transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#BEFF47]/50 focus-visible:ring-offset-[#08090f] disabled:cursor-not-allowed select-none";
+      "inline-flex items-center justify-center gap-2.5 font-semibold rounded-xl transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#BEFF47]/50 focus-visible:ring-offset-[#06070c] disabled:cursor-not-allowed active:scale-[0.985] select-none";
 
     const variants = {
       primary:
-        "bg-[#BEFF47] hover:bg-[#CCFF5A] active:bg-[#b8f038] text-[#06080A] disabled:opacity-50 shadow-[0_4px_24px_rgba(190,255,71,.2)]",
+        "btn-accent disabled:opacity-50 disabled:shadow-none",
       secondary:
-        "bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 dark:active:bg-gray-600 dark:text-gray-100 disabled:opacity-50",
+        "bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.14] text-white border border-white/10 hover:border-white/20 disabled:opacity-50",
       ghost:
-        "text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800 disabled:opacity-40",
+        "text-[var(--muted)] hover:text-white hover:bg-white/[0.06] disabled:opacity-40",
       oauth:
-        "bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-900 dark:hover:bg-gray-800 dark:active:bg-gray-700 dark:text-gray-100 dark:border-gray-700 disabled:opacity-50 shadow-sm",
+        "bg-white/[0.05] hover:bg-white/[0.09] active:bg-white/[0.12] text-white border border-white/10 hover:border-white/20 disabled:opacity-50",
     };
 
     const sizes = {

@@ -14,7 +14,6 @@ const FULL_BLEED_ROUTES = new Set([
   "/forgot-password",
   "/reset-password",
   "/verify-email",
-  "/install-app",
   "/onboarding",
 ]);
 

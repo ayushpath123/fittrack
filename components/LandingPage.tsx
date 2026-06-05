@@ -4,7 +4,6 @@ import {
   Activity,
   ArrowRight,
   Check,
-  Download,
   Smartphone,
   Target,
   Utensils,
@@ -43,12 +42,13 @@ const guideSteps = [
 
 export function LandingPage() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#08090F] text-white">
-      <div className="pointer-events-none fixed -left-64 -top-64 h-[500px] w-[500px] rounded-full bg-[#BEFF47] opacity-[0.04] blur-[120px]" />
-      <div className="pointer-events-none fixed -bottom-48 -right-48 h-[400px] w-[400px] rounded-full bg-[#4A7EFF] opacity-[0.05] blur-[100px]" />
+    <div className="relative min-h-screen overflow-x-hidden bg-[#06070c] text-white">
+      <div className="pointer-events-none fixed -left-64 -top-64 h-[500px] w-[500px] rounded-full bg-[#BEFF47] opacity-[0.06] blur-[120px]" />
+      <div className="pointer-events-none fixed -bottom-48 -right-48 h-[400px] w-[400px] rounded-full bg-[#4A7EFF] opacity-[0.06] blur-[100px]" />
+      <div className="pointer-events-none fixed left-1/2 top-1/4 h-[360px] w-[360px] -translate-x-1/2 rounded-full bg-[#A78BFA] opacity-[0.04] blur-[130px]" />
 
       <header className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 pt-4">
-        <nav className="flex w-full max-w-md items-center justify-between rounded-2xl border border-white/[0.09] bg-[#0D0E16]/80 px-4 py-2.5 backdrop-blur-2xl">
+        <nav className="flex w-full max-w-md items-center justify-between rounded-2xl border border-white/[0.09] bg-[#0D0E16]/70 px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl">
           <AppBrand href="/" />
           <div className="flex items-center gap-1">
             <Link
@@ -59,7 +59,7 @@ export function LandingPage() {
             </Link>
             <Link
               href="/signup"
-              className="rounded-xl bg-[#BEFF47] px-3.5 py-2 text-xs font-semibold text-[#06080A] transition-all hover:bg-[#CCFF5A] active:scale-[0.97]"
+              className="btn-accent rounded-xl px-3.5 py-2 text-xs font-semibold transition-all"
             >
               Get started
             </Link>
@@ -76,7 +76,7 @@ export function LandingPage() {
 
           <h1 className="mx-auto max-w-xl text-[clamp(2rem,5vw,3rem)] font-extrabold leading-[1.1] tracking-[-0.02em] text-white">
             Log meals in{" "}
-            <span className="text-[#BEFF47]">one tap</span>
+            <span className="grad-blue-purple">one tap</span>
             <span className="block text-[clamp(1.25rem,3vw,1.75rem)] font-bold text-white/70">
               Built for Indian routines
             </span>
@@ -99,29 +99,31 @@ export function LandingPage() {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-2.5">
             <Link
               href="/signup"
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#BEFF47] px-6 py-3.5 text-sm font-semibold text-[#06080A] shadow-[0_8px_40px_rgba(190,255,71,.18)] transition-all hover:bg-[#CCFF5A] active:scale-[0.98]"
+              className="btn-accent group inline-flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-all"
             >
               Start free
-              <ArrowRight className="h-4 w-4" aria-hidden />
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
             </Link>
             <Link
-              href="/install-app"
+              href="/login"
               className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-6 py-3.5 text-sm font-medium text-white/60 transition-colors hover:border-white/20 hover:text-white/90"
             >
-              <Download className="h-4 w-4" aria-hidden />
-              Install app
+              Log in
             </Link>
           </div>
 
-          <div className="mt-12 flex items-center justify-center gap-8">
+          <div className="mx-auto mt-12 flex max-w-sm items-center justify-center gap-3">
             {[
               { val: "Free", label: "full logging" },
               { val: "<60s", label: "first meal log" },
               { val: "Mobile", label: "first" },
-            ].map(({ val, label }) => (
-              <div key={label} className="text-center">
-                <p className="text-lg font-bold text-white">{val}</p>
-                <p className="mt-0.5 text-[11px] text-white/30">{label}</p>
+            ].map(({ val, label }, i) => (
+              <div
+                key={label}
+                className={`flex-1 text-center ${i === 1 ? "border-x border-white/[0.07] px-3" : "px-1"}`}
+              >
+                <p className="num text-xl font-bold text-[#BEFF47]">{val}</p>
+                <p className="mt-1 text-[11px] text-white/35">{label}</p>
               </div>
             ))}
           </div>
@@ -142,9 +144,9 @@ export function LandingPage() {
             {coreFeatures.map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}
-                className="rounded-[18px] border border-white/[0.06] bg-white/[0.025] p-5 transition-all hover:border-[#BEFF47]/20"
+                className="rounded-[18px] border border-white/[0.07] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#BEFF47]/25"
               >
-                <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-[#BEFF47]/10">
+                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl border border-[#BEFF47]/20 bg-[#BEFF47]/10">
                   <Icon className="h-4 w-4 text-[#BEFF47]" aria-hidden />
                 </div>
                 <h3 className="text-sm font-semibold text-white">{title}</h3>
@@ -165,9 +167,9 @@ export function LandingPage() {
             {guideSteps.map(({ n, title, body }) => (
               <div
                 key={n}
-                className="flex gap-4 rounded-[18px] border border-white/[0.06] bg-white/[0.025] p-4 sm:p-5"
+                className="flex gap-4 rounded-[18px] border border-white/[0.07] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors duration-200 hover:border-white/15 sm:p-5"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#BEFF47]/25 bg-[#BEFF47]/8 text-xs font-bold text-[#B8E86A]">
+                <span className="num flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#BEFF47]/25 bg-[#BEFF47]/10 text-sm font-bold text-[#BEFF47]">
                   {n}
                 </span>
                 <div>
@@ -185,7 +187,7 @@ export function LandingPage() {
           <div className="mt-6 flex flex-wrap justify-center gap-2.5">
             <Link
               href="/signup"
-              className="inline-flex rounded-2xl bg-[#BEFF47] px-7 py-3 text-sm font-semibold text-[#06080A] shadow-[0_8px_32px_rgba(190,255,71,.2)] transition-all hover:bg-[#CCFF5A]"
+              className="btn-accent inline-flex rounded-2xl px-7 py-3 text-sm font-semibold transition-all"
             >
               Create account
             </Link>
@@ -207,9 +209,6 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4">
           <p>© {new Date().getFullYear()} FitTrack</p>
           <div className="flex gap-5">
-            <Link href="/install-app" className="transition-colors hover:text-white/45">
-              Install
-            </Link>
             <Link href="/login" className="transition-colors hover:text-white/45">
               Log in
             </Link>

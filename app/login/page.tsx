@@ -37,7 +37,6 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  const installUrl = `/install-app?next=${encodeURIComponent(callbackUrl)}`;
   const [step, setStep] = useState<Step>("pick");
   const [prevStep, setPrevStep] = useState<Step>("pick");
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -101,14 +100,14 @@ function LoginForm() {
     }
 
     toast.success("Welcome back!");
-    router.push(installUrl);
+    router.push(callbackUrl);
     router.refresh();
   };
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
     try {
-      await signIn("google", { callbackUrl: installUrl });
+      await signIn("google", { callbackUrl });
     } catch {
       toast.error("Failed to sign in with google. Try again.");
       setGoogleLoading(false);
@@ -192,7 +191,7 @@ function LoginForm() {
     }
 
     toast.success("Signed in with SMS OTP.");
-    router.push(`/install-app?next=${encodeURIComponent("/dashboard")}`);
+    router.push("/dashboard");
     router.refresh();
   };
 

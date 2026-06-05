@@ -49,7 +49,17 @@ export const workoutExerciseSchema = z.object({
 export const workoutPayloadSchema = z.object({
   date: z.string().min(1),
   exercises: z.array(workoutExerciseSchema).min(1),
+  caloriesBurned: z.number().int().nonnegative().optional(),
 });
+
+export const workoutPatchSchema = z
+  .object({
+    completed: z.boolean().optional(),
+    caloriesBurned: z.number().int().nonnegative().optional(),
+  })
+  .refine((d) => d.completed !== undefined || d.caloriesBurned !== undefined, {
+    message: "No fields to update",
+  });
 
 export const weightPayloadSchema = z.object({
   date: z.string().min(1),

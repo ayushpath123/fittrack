@@ -13,9 +13,9 @@ type Blob = {
 const configs: Record<MeshVariant, Blob[]> = {
   /** Onboarding-aligned ambient orbs */
   fittrack: [
-    { size: 380, color: "rgba(190,255,71,.055)", top: "-120px", left: "-120px", delay: "0s" },
-    { size: 320, color: "rgba(74,126,255,.07)", bottom: "-100px", right: "-100px", delay: "-5s" },
-    { size: 220, color: "rgba(87,180,255,.05)", top: "40%", left: "-40px", delay: "-9s" },
+    { size: 400, color: "rgba(190,255,71,.08)", top: "-130px", left: "-120px", delay: "0s" },
+    { size: 320, color: "rgba(74,126,255,.08)", bottom: "-100px", right: "-100px", delay: "-5s" },
+    { size: 240, color: "rgba(167,139,250,.06)", top: "42%", left: "-50px", delay: "-9s" },
   ],
   blue: [
     { size: 340, color: "rgba(190,255,71,.18)", top: "-80px", left: "-80px", delay: "0s" },

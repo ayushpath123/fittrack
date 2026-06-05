@@ -47,9 +47,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ label, error, icon, to
                   "focus:border-[#BEFF47]/35 focus:outline-none focus:ring-2 focus:ring-[#BEFF47]/20",
                 ]
               : [
-                  "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900",
-                  "text-gray-900 placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-600",
-                  "focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400",
+                  "border-gray-200 bg-white dark:border-white/10 dark:bg-white/[0.06]",
+                  "text-gray-900 placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-white/35",
+                  "focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#BEFF47]/40",
                 ],
             error &&
               (isGlass

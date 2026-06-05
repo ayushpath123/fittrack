@@ -66,6 +66,7 @@ export interface WorkoutType {
   id: string;
   date: string;
   completed: boolean;
+  caloriesBurned?: number | null;
   exercises: ExerciseEntryType[];
 }
 

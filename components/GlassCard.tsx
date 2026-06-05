@@ -27,9 +27,10 @@ export function GlassCard({ children, className = "", style = {}, glow, onClick 
         background: glowStyle.bg,
         border: `1px solid ${glowStyle.border}`,
         borderRadius: 22,
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        transition: "background .2s, border-color .2s, transform .2s",
+        backdropFilter: "blur(22px) saturate(1.4)",
+        WebkitBackdropFilter: "blur(22px) saturate(1.4)",
+        boxShadow: "inset 0 1px 0 var(--glass-highlight), var(--shadow-soft)",
+        transition: "background .2s, border-color .2s, transform .2s, box-shadow .2s",
         ...(onClick ? { cursor: "pointer" } : {}),
         ...style,
       }}

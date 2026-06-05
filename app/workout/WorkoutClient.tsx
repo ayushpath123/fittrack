@@ -1,7 +1,7 @@
 "use client";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, Plus, Trash2 } from "lucide-react";
+import { Check, Copy, Flame, Plus, Trash2 } from "lucide-react";
 import { ExerciseEntryType, WorkoutType } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { SectionHeader } from "@/components/SectionHeader";
@@ -67,7 +67,15 @@ export function WorkoutClient({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [undoMessage, setUndoMessage] = useState("");
+  const [caloriesBurned, setCaloriesBurned] = useState(
+    todayWorkout?.caloriesBurned != null ? String(todayWorkout.caloriesBurned) : "",
+  );
   const pendingDeleteRef = useRef<{ workout: WorkoutType; draft: ExerciseEntryType[]; timer: ReturnType<typeof setTimeout> } | null>(null);
+
+  function parsedCaloriesBurned(): number | undefined {
+    const value = parseInt(caloriesBurned, 10);
+    return Number.isFinite(value) && value >= 0 ? value : undefined;
+  }
 
   useEffect(() => {
     if (searchParams.get("action") === "start") {
@@ -99,15 +107,20 @@ export function WorkoutClient({
     setError("");
     try {
       const date = new Date().toISOString().split("T")[0];
+      const burned = parsedCaloriesBurned();
       const res = await fetch("/api/workout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ date, exercises: draftExercises }),
+        body: JSON.stringify({
+          date,
+          exercises: draftExercises,
+          ...(burned !== undefined ? { caloriesBurned: burned } : {}),
+        }),
       });
       if (!res.ok) throw new Error("Unable to save workout");
-      const saved = await res.json();
-      setWorkout(saved);
+      const saved = (await res.json()) as WorkoutType;
+      setWorkout({ ...saved, date: String(saved.date) });
       setStarted(true);
     } catch {
       setError("Could not start workout. Please retry.");
@@ -115,19 +128,47 @@ export function WorkoutClient({
       setIsSaving(false);
     }
   }
-  async function markComplete() {
-    if (!workout) return;
+  async function updateWorkoutFields(fields: { completed?: boolean; caloriesBurned?: number }) {
+    if (!workout) return false;
     setIsSaving(true);
     setError("");
     try {
-      const res = await fetch(`/api/workout/${workout.id}`, { method: "PATCH", credentials: "include" });
-      if (!res.ok) throw new Error("Unable to mark complete");
-      setWorkout({ ...workout, completed: true });
+      const res = await fetch(`/api/workout/${workout.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(fields),
+      });
+      if (!res.ok) throw new Error("Unable to update workout");
+      const saved = (await res.json()) as WorkoutType;
+      setWorkout({ ...saved, date: String(saved.date) });
+      if (saved.caloriesBurned != null) setCaloriesBurned(String(saved.caloriesBurned));
+      return true;
     } catch {
-      setError("Could not mark workout done. Please retry.");
+      setError("Could not update workout. Please retry.");
+      return false;
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function markComplete() {
+    if (!workout) return;
+    const burned = parsedCaloriesBurned();
+    if (burned === undefined) {
+      setError("Enter calories burned before marking done.");
+      return;
+    }
+    await updateWorkoutFields({ completed: true, caloriesBurned: burned });
+  }
+
+  async function saveCaloriesBurned() {
+    const burned = parsedCaloriesBurned();
+    if (burned === undefined) {
+      setError("Enter a valid calorie amount.");
+      return;
+    }
+    await updateWorkoutFields({ caloriesBurned: burned });
   }
 
   function applyWorkoutTemplate(w: WorkoutType) {
@@ -249,6 +290,7 @@ export function WorkoutClient({
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-green-700 dark:text-emerald-400">Workout</p>
                 <p className="mt-1 text-sm font-semibold text-green-900 dark:text-emerald-100">
                   {draftExercises.length} exercises · Done
+                  {workout.caloriesBurned ? ` · ${workout.caloriesBurned} kcal burned` : ""}
                 </p>
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-600">
@@ -256,6 +298,37 @@ export function WorkoutClient({
               </div>
             </div>
           )}
+
+          {workout ? (
+            <div className="premium-card rounded-2xl p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <Flame size={16} className="text-[#FFB547]" aria-hidden />
+                <p className="text-sm font-semibold text-[var(--white)]">Calories burned</p>
+              </div>
+              <p className="mb-3 text-[11px] text-[var(--muted)]">
+                Log how many calories you burned during this session. Shown on your dashboard.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={caloriesBurned}
+                  onChange={(e) => setCaloriesBurned(e.target.value)}
+                  placeholder="e.g. 320"
+                  className="metric-value flex-1 rounded-xl border border-white/12 bg-white/[0.05] px-3 py-2.5 text-sm font-semibold text-[var(--white)] focus:border-[#FFB547]/40 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => void saveCaloriesBurned()}
+                  className="rounded-xl border border-[rgba(255,181,71,.3)] bg-[rgba(255,181,71,.12)] px-4 py-2 text-xs font-semibold text-[#FFB547] disabled:opacity-40"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             {draftExercises.map((ex, i) => {

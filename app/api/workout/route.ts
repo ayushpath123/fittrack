@@ -17,7 +17,11 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid workout payload", details: parsed.error.flatten() }, { status: 400 });
   }
-  const { date, exercises } = parsed.data as { date: string; exercises: ExerciseEntryType[] };
-  const workout = await upsertWorkoutForDate({ userId, date, exercises });
+  const { date, exercises, caloriesBurned } = parsed.data as {
+    date: string;
+    exercises: ExerciseEntryType[];
+    caloriesBurned?: number;
+  };
+  const workout = await upsertWorkoutForDate({ userId, date, exercises, caloriesBurned });
   return NextResponse.json(workout);
 }

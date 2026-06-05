@@ -98,8 +98,13 @@ export async function getWorkoutForDate(userId: string, dateStr?: string) {
   });
 }
 
-export async function upsertWorkoutForDate(params: { userId: string; date: string; exercises: ExerciseEntryType[] }) {
-  const { userId, date, exercises } = params;
+export async function upsertWorkoutForDate(params: {
+  userId: string;
+  date: string;
+  exercises: ExerciseEntryType[];
+  caloriesBurned?: number;
+}) {
+  const { userId, date, exercises, caloriesBurned } = params;
   const day = new Date(date);
   const existing = await prisma.workout.findFirst({
     where: { userId, date: { gte: startOfDay(day), lte: endOfDay(day) } },
@@ -109,6 +114,7 @@ export async function upsertWorkoutForDate(params: { userId: string; date: strin
     return prisma.workout.update({
       where: { id: existing.id },
       data: {
+        ...(caloriesBurned !== undefined ? { caloriesBurned } : {}),
         exercises: {
           deleteMany: {},
           create: exercises.map(({ name, sets, reps, weight }) => ({ name, sets, reps, weight })),
@@ -122,6 +128,7 @@ export async function upsertWorkoutForDate(params: { userId: string; date: strin
     data: {
       userId,
       date: startOfDay(day),
+      ...(caloriesBurned !== undefined ? { caloriesBurned } : {}),
       exercises: { create: exercises.map(({ name, sets, reps, weight }) => ({ name, sets, reps, weight })) },
     },
     include: { exercises: true },

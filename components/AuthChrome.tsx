@@ -6,12 +6,13 @@ export function AuthPageChrome({ children, className }: { children: React.ReactN
   return (
     <div
       className={cn(
-        "relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#08090F] px-4 py-10",
+        "relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#06070c] px-4 py-10",
         className,
       )}
     >
-      <div className="pointer-events-none absolute -left-48 -top-48 h-96 w-96 rounded-full bg-[#BEFF47] opacity-[0.055] blur-[100px]" />
-      <div className="pointer-events-none absolute -bottom-48 -right-48 h-80 w-80 rounded-full bg-[#4A7EFF] opacity-[0.07] blur-[90px]" />
+      <div className="pointer-events-none absolute -left-48 -top-48 h-96 w-96 rounded-full bg-[#BEFF47] opacity-[0.08] blur-[110px]" />
+      <div className="pointer-events-none absolute -bottom-48 -right-48 h-80 w-80 rounded-full bg-[#4A7EFF] opacity-[0.09] blur-[100px]" />
+      <div className="pointer-events-none absolute left-1/2 top-1/3 h-72 w-72 -translate-x-1/2 rounded-full bg-[#A78BFA] opacity-[0.05] blur-[120px]" />
       <div className="relative z-[1] flex w-full flex-col items-center">
         <div className="mb-6 flex w-full justify-center sm:mb-8">
           <AppBrand href="/" />
@@ -26,7 +27,7 @@ export function AuthCard({ children, className }: { children: React.ReactNode; c
   return (
     <div
       className={cn(
-        "rounded-[26px] border border-white/[0.08] bg-white/[0.032] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-8",
+        "rounded-[26px] border border-white/[0.08] bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_60px_-20px_rgba(0,0,0,0.7)] backdrop-blur-xl sm:p-8",
         className,
       )}
     >

@@ -67,22 +67,22 @@ export function Sidebars() {
       <header
         className="fixed top-0 left-0 right-0 z-40"
         style={{
-          background: "linear-gradient(180deg, rgba(10,12,20,.94), rgba(9,11,18,.9))",
-          borderBottom: "1px solid rgba(255,255,255,.1)",
-          backdropFilter: "blur(26px)",
-          WebkitBackdropFilter: "blur(26px)",
+          background: "linear-gradient(180deg, rgba(9,11,18,.86), rgba(8,10,17,.72))",
+          borderBottom: "1px solid var(--glass-border)",
+          backdropFilter: "blur(28px) saturate(1.4)",
+          WebkitBackdropFilter: "blur(28px) saturate(1.4)",
         }}
       >
         <div className="max-w-md mx-auto px-3.5 py-2.5 h-[var(--app-header-h)] flex items-center justify-between">
           <div className="min-w-0">
             <AppBrand href="/" />
           </div>
-          <div className="flex items-center gap-1.5 min-w-0 shrink-0">
+          <div className="flex items-center gap-2 min-w-0 shrink-0">
             <Link
               href="/meals?action=ai"
               aria-label="AI camera calorie estimate"
-              className="flex h-9 w-9 items-center justify-center rounded-xl border active:scale-95 transition-transform"
-              style={{ borderColor: "rgba(190,255,71,.32)", background: "rgba(190,255,71,.16)" }}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border transition-transform duration-150 active:scale-90"
+              style={{ borderColor: "var(--accent-border)", background: "var(--accent-soft)" }}
             >
               <Camera size={16} className="text-[#BEFF47]" />
             </Link>
@@ -93,8 +93,8 @@ export function Sidebars() {
                 aria-expanded={profileOpen}
                 aria-haspopup="dialog"
                 onClick={() => setProfileOpen((o) => !o)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border active:scale-95 transition-transform"
-                style={{ borderColor: "rgba(255,255,255,.2)", background: "rgba(255,255,255,.08)" }}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-transform duration-150 active:scale-90"
+                style={{ borderColor: "var(--glass-border)", background: "var(--glass)" }}
               >
                 <EllipsisVertical size={16} className="text-[var(--white)]" />
               </button>
@@ -118,7 +118,7 @@ export function Sidebars() {
                         <Link
                           href={href}
                           onClick={() => setProfileOpen(false)}
-                          className="flex items-start gap-2.5 rounded-xl px-2 py-2 text-left transition-colors"
+                          className="flex items-start gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-white/[0.05]"
                           style={{ color: "var(--white)" }}
                         >
                           <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[#BEFF47]" aria-hidden />
@@ -139,7 +139,7 @@ export function Sidebars() {
                       <button
                         type="button"
                         onClick={handleSignOut}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 active:scale-[0.98] transition-transform"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-[rgba(255,92,122,.22)] bg-[rgba(255,92,122,.1)] px-3 py-2 text-xs font-semibold text-[#ff7d95] transition-colors hover:bg-[rgba(255,92,122,.16)] active:scale-[0.98]"
                       >
                         <LogOut size={14} aria-hidden />
                         Log out
