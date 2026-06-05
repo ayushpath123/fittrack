@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUserIdFromRequest } from "@/lib/auth";
+import { requireUserIdFromRequest, StaleSessionError } from "@/lib/auth";
 import { mealPayloadSchema } from "@/lib/validators";
 import { createMealForDay, listMealsForDate } from "@/lib/domain/tracking";
 import { MealItem } from "@/types";
@@ -12,7 +12,16 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const userId = await requireUserIdFromRequest(req);
+  let userId: string;
+  try {
+    userId = await requireUserIdFromRequest(req);
+  } catch (e) {
+    if (e instanceof StaleSessionError || (e instanceof Error && e.message === "Unauthorized")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    throw e;
+  }
+
   const parsed = mealPayloadSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid meal payload", details: parsed.error.flatten() }, { status: 400 });

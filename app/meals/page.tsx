@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { endOfDay, startOfDay } from "@/lib/date";
+import { endOfDay, getDaysAgo, startOfDay, toLocalDateKey } from "@/lib/date";
+import { mealLoggingStreakEndingYesterday } from "@/lib/meal-logging-streak";
 import { buildLoggableTemplates, normalizeMealType } from "@/lib/meal-templates";
 import { MealsClient } from "./MealsClient";
 import { FoodItemType, MealEntryType, MealItem, MealTemplateType } from "@/types";
@@ -19,7 +20,7 @@ export default async function MealsPage({
     ? slotRaw
     : undefined;
   const today = new Date();
-  const [entries, foods, templates, goals] = await Promise.all([
+  const [entries, foods, templates, goals, streakMeals] = await Promise.all([
     prisma.mealEntry.findMany({ where: { userId, date: { gte: startOfDay(today), lte: endOfDay(today) } }, orderBy: { date: "asc" } }),
     prisma.foodItem.findMany({
       orderBy: { name: "asc" },
@@ -38,7 +39,14 @@ export default async function MealsPage({
     }),
     prisma.mealTemplate.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
     prisma.goalSetting.findUnique({ where: { userId } }),
+    prisma.mealEntry.findMany({
+      where: { userId, date: { gte: getDaysAgo(400) } },
+      select: { date: true },
+    }),
   ]);
+
+  const streakLoggedDays = new Set(streakMeals.map((m) => toLocalDateKey(new Date(m.date))));
+  const streakAfterFirstLogToday = mealLoggingStreakEndingYesterday(streakLoggedDays) + 1;
 
   const targets = {
     calories: goals?.calorieTarget ?? 1500,
@@ -68,6 +76,7 @@ export default async function MealsPage({
       logTemplates={logTemplates}
       targets={targets}
       initialSlot={initialSlot}
+      streakAfterFirstLogToday={streakAfterFirstLogToday}
     />
   );
 }

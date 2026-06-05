@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signupApiSchema } from "@/lib/validations/auth";
-import { cleanupAuthTokens, issueAuthToken } from "@/lib/authTokens";
-import { sendVerificationEmail } from "@/lib/mailer";
 import { normalizePhone } from "@/lib/otp";
 
 export async function POST(request: Request) {
@@ -18,14 +16,17 @@ export async function POST(request: Request) {
     }
 
     const email = parsed.data.email.trim().toLowerCase();
-    const phone = normalizePhone(parsed.data.phone);
+    const phoneRaw = parsed.data.phone?.trim();
+    const phone = phoneRaw ? normalizePhone(phoneRaw) : null;
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });
     }
-    const existingPhone = await prisma.user.findUnique({ where: { phone } });
-    if (existingPhone) {
-      return NextResponse.json({ error: "An account with this phone already exists." }, { status: 409 });
+    if (phone) {
+      const existingPhone = await prisma.user.findUnique({ where: { phone } });
+      if (existingPhone) {
+        return NextResponse.json({ error: "An account with this phone already exists." }, { status: 409 });
+      }
     }
 
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
@@ -33,8 +34,9 @@ export async function POST(request: Request) {
     const user = await prisma.user.create({
       data: {
         email,
-        phone,
+        phone: phone ?? undefined,
         passwordHash,
+        emailVerified: new Date(),
       },
       select: {
         id: true,
@@ -43,16 +45,10 @@ export async function POST(request: Request) {
       },
     });
 
-    await cleanupAuthTokens(user.id, "EMAIL_VERIFY");
-    const verifyToken = await issueAuthToken(user.id, "EMAIL_VERIFY", 60 * 24);
-    const verifyUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/verify-email?token=${verifyToken}`;
-    await sendVerificationEmail(email, verifyUrl);
-
     return NextResponse.json(
       {
-        message: "Account created successfully. Verification email sent.",
+        message: "Account created successfully.",
         user,
-        verifyUrl: process.env.NODE_ENV === "development" ? verifyUrl : undefined,
       },
       { status: 201 }
     );

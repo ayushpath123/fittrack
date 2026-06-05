@@ -8,13 +8,10 @@ import toast from "react-hot-toast";
 
 import { AppBrand } from "@/components/AppBrand";
 import ProgressBar from "./ProgressBar";
-import WelcomeStep from "./steps/WelcomeStep";
-import WeightStep from "./steps/WeightStep";
-import HeightStep from "./steps/HeightStep";
-import GoalStep from "./steps/GoalStep";
-import ProcessingStep from "./steps/ProcessingStep";
+import QuickSetupStep from "./steps/QuickSetupStep";
 import FirstLogStep from "./steps/FirstLogStep";
 import type { Goal, MacroResults } from "./types";
+import { calculateMacros } from "@/lib/onboarding-macros";
 
 export type { Goal, MacroResults } from "./types";
 
@@ -23,7 +20,7 @@ interface State {
   direction: number;
   weight: number;
   height: number;
-  goal: Goal | null;
+  goal: Goal;
   results: MacroResults | null;
 }
 
@@ -55,42 +52,20 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-function calculateMacros(weight: number, height: number, goal: Goal): MacroResults {
-  const bmr = 10 * weight + 6.25 * height - 5 * 25 + 5;
-  let calories = Math.round(bmr * 1.55);
-
-  if (goal === "lose") calories -= 400;
-  else if (goal === "gain") calories += 300;
-
-  const proteinTarget = Math.round(weight * 1.9);
-  const fatTarget = Math.round((calories * 0.225) / 9);
-  let carbTarget = Math.round((calories - proteinTarget * 4 - fatTarget * 9) / 4);
-  carbTarget = Math.max(50, carbTarget);
-  let waterTargetMl = Math.round(weight * 35);
-  waterTargetMl = Math.min(20000, Math.max(500, waterTargetMl));
-
-  return {
-    calorieTarget: Math.max(800, calories),
-    proteinTarget: Math.max(30, proteinTarget),
-    carbTarget,
-    fatTarget: Math.max(20, fatTarget),
-    waterTargetMl,
-  };
-}
-
-const PROGRESS_MAP: Record<number, number> = { 0: 0, 1: 24, 2: 48, 3: 72, 4: 88, 5: 100 };
+const PROGRESS_MAP: Record<number, number> = { 0: 12, 1: 100 };
 
 export default function OnboardingFlow() {
   const router = useRouter();
   const { status } = useSession();
   const [bootstrapping, setBootstrapping] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [state, dispatch] = useReducer(reducer, {
     step: 0,
     direction: 1,
-    weight: 72,
-    height: 175,
-    goal: null,
+    weight: 70,
+    height: 170,
+    goal: "maintain",
     results: null,
   });
 
@@ -133,11 +108,8 @@ export default function OnboardingFlow() {
   }, [status, router]);
 
   const handleFinish = useCallback(async () => {
-    if (!state.goal) return;
-
     const computed = calculateMacros(state.weight, state.height, state.goal);
-    goTo(4);
-    dispatch({ type: "SET_RESULTS", results: null });
+    setIsSaving(true);
 
     try {
       const res = await fetch("/api/settings/goals", {
@@ -163,25 +135,22 @@ export default function OnboardingFlow() {
           /* ignore */
         }
         toast.error(msg);
-        goTo(3);
         return;
       }
 
       dispatch({ type: "SET_RESULTS", results: computed });
-      toast.success("Your plan is ready! \u{1F389}", { duration: 4000 });
+      toast.success(`${computed.calorieTarget} kcal/day — tap to log your first meal`, { duration: 3500 });
+      goTo(1);
     } catch {
       toast.error("Network error — could not save your plan. Try again.");
-      goTo(3);
+    } finally {
+      setIsSaving(false);
     }
-  }, [state.goal, state.weight, state.height, goTo, router]);
+  }, [state.weight, state.height, state.goal, goTo, router]);
 
   const handleFirstLogDone = useCallback(() => {
     window.location.assign("/dashboard?welcome=1");
   }, []);
-
-  const handleGoToFirstLog = useCallback(() => {
-    goTo(5);
-  }, [goTo]);
 
   const { step, direction, weight, height, goal, results } = state;
 
@@ -209,59 +178,25 @@ export default function OnboardingFlow() {
       </div>
 
       <div className="relative z-[1] w-full max-w-[440px] overflow-hidden rounded-[26px] border border-white/[0.08] bg-white/[0.032] backdrop-blur-xl">
-        <ProgressBar progress={PROGRESS_MAP[step]} />
-
-        {step >= 1 && step <= 3 && (
-          <div className="flex items-center gap-1.5 px-9 pt-8">
-            {[1, 2, 3].map((s) => (
-              <span
-                key={s}
-                className={[
-                  "h-[5px] rounded-full transition-all duration-300",
-                  s === step ? "w-5 bg-[#BEFF47]" : s < step ? "w-1.5 bg-[#BEFF47]/45" : "w-1.5 bg-white/20",
-                ].join(" ")}
-              />
-            ))}
-          </div>
-        )}
+        <ProgressBar progress={PROGRESS_MAP[step] ?? 0} />
 
         <div className="px-9 pb-9 pt-6">
           <AnimatePresence mode="wait" custom={direction}>
-            {step === 0 && <WelcomeStep key="welcome" direction={direction} onNext={() => goTo(1)} />}
-            {step === 1 && (
-              <WeightStep
-                key="weight"
+            {step === 0 && (
+              <QuickSetupStep
+                key="quicksetup"
                 direction={direction}
-                value={weight}
-                onChange={(v) => dispatch({ type: "SET_WEIGHT", value: v })}
-                onBack={() => goTo(0)}
-                onNext={() => goTo(2)}
+                goal={goal}
+                weight={weight}
+                height={height}
+                isSaving={isSaving}
+                onGoalChange={(g) => dispatch({ type: "SET_GOAL", goal: g })}
+                onWeightChange={(v) => dispatch({ type: "SET_WEIGHT", value: v })}
+                onHeightChange={(v) => dispatch({ type: "SET_HEIGHT", value: v })}
+                onFinish={() => void handleFinish()}
               />
             )}
-            {step === 2 && (
-              <HeightStep
-                key="height"
-                direction={direction}
-                value={height}
-                onChange={(v) => dispatch({ type: "SET_HEIGHT", value: v })}
-                onBack={() => goTo(1)}
-                onNext={() => goTo(3)}
-              />
-            )}
-            {step === 3 && (
-              <GoalStep
-                key="goal"
-                direction={direction}
-                selected={goal}
-                onSelect={(g) => dispatch({ type: "SET_GOAL", goal: g })}
-                onBack={() => goTo(2)}
-                onNext={handleFinish}
-              />
-            )}
-            {step === 4 && (
-              <ProcessingStep key="processing" direction={direction} results={results} onDashboard={handleGoToFirstLog} />
-            )}
-            {step === 5 && results && (
+            {step === 1 && results && (
               <FirstLogStep key="firstlog" direction={direction} results={results} onDone={handleFirstLogDone} />
             )}
           </AnimatePresence>

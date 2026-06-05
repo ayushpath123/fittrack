@@ -57,7 +57,7 @@ export default function FirstLogStep({ direction, results, onDone }: FirstLogSte
 
   return (
     <StepContainer direction={direction}>
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[#B8E86A]">Almost done</p>
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[#B8E86A]">Step 2 of 2</p>
       <h2
         className="mb-2 text-[26px] font-extrabold leading-tight text-white"
         style={{ fontFamily: "var(--font-display), system-ui, sans-serif" }}

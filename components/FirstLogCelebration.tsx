@@ -6,9 +6,11 @@ interface FirstLogCelebrationProps {
   onClose: () => void;
   calories: number;
   protein: number;
+  streakDays?: number;
 }
 
-export function FirstLogCelebration({ onClose, calories, protein }: FirstLogCelebrationProps) {
+export function FirstLogCelebration({ onClose, calories, protein, streakDays = 1 }: FirstLogCelebrationProps) {
+  const continued = streakDays > 1;
   const confettiRef = useRef<HTMLDivElement>(null);
   const fireRef = useRef<HTMLDivElement>(null);
 
@@ -119,7 +121,9 @@ export function FirstLogCelebration({ onClose, calories, protein }: FirstLogCele
           }}
         >
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#FFB547", animation: "pulse-glow 1.5s infinite" }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#FFB547", letterSpacing: ".08em", textTransform: "uppercase" }}>First meal logged!</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#FFB547", letterSpacing: ".08em", textTransform: "uppercase" }}>
+            {continued ? "Streak saved today!" : "First meal today!"}
+          </span>
         </div>
 
         <h1
@@ -134,7 +138,7 @@ export function FirstLogCelebration({ onClose, calories, protein }: FirstLogCele
             opacity: 0,
           }}
         >
-          Streak starts
+          {continued ? "Streak" : "Streak starts"}
           <br />
           <span
             style={{
@@ -143,7 +147,7 @@ export function FirstLogCelebration({ onClose, calories, protein }: FirstLogCele
               WebkitTextFillColor: "transparent",
             }}
           >
-            now.
+            {continued ? "protected." : "now."}
           </span>
         </h1>
 
@@ -156,7 +160,7 @@ export function FirstLogCelebration({ onClose, calories, protein }: FirstLogCele
             opacity: 0,
           }}
         >
-          {Math.round(calories)} kcal · {Math.round(protein)}g protein · Day 1 ✨
+          {Math.round(calories)} kcal · {Math.round(protein)}g protein · Day {streakDays} ✨
         </p>
 
         <div
@@ -172,7 +176,7 @@ export function FirstLogCelebration({ onClose, calories, protein }: FirstLogCele
           {[
             { val: `${Math.round(calories).toLocaleString()}`, sub: "kcal", color: "#BEFF47" },
             { val: `${Math.round(protein)}g`, sub: "protein", color: "#2DD4A0" },
-            { val: "Day 1", sub: "streak", color: "#FFB547" },
+            { val: `Day ${streakDays}`, sub: "streak", color: "#FFB547" },
           ].map(({ val, sub, color }) => (
             <div key={sub} style={{ background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 18, padding: "14px 16px", textAlign: "center", flex: 1 }}>
               <p style={{ fontSize: 20, fontWeight: 800, color: color ?? "#fff" }}>{val}</p>

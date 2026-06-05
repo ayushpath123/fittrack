@@ -343,6 +343,27 @@ textarea:focus-visible {
   }
 }
 
+@keyframes fire-flicker {
+  0%,
+  100% {
+    transform: scaleY(1) rotate(-1deg);
+    opacity: 1;
+  }
+  33% {
+    transform: scaleY(1.12) rotate(1.5deg);
+    opacity: 0.92;
+  }
+  66% {
+    transform: scaleY(0.94) rotate(-2deg);
+    opacity: 1;
+  }
+}
+
+.animate-fire-flicker {
+  animation: fire-flicker 0.8s ease-in-out infinite;
+  display: inline-block;
+}
+
 @keyframes fire-rise {
   0% {
     transform: translateY(0) scale(1);

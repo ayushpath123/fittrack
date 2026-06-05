@@ -7,8 +7,16 @@ import { EmptyState } from "@/components/EmptyState";
 import { MealCard } from "@/components/MealCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Toast } from "@/components/Toast";
+import { FirstLogCelebration } from "@/components/FirstLogCelebration";
 import type { LoggableMealTemplate, MacroSnapshot } from "@/lib/meal-templates";
 import { normalizeMealType } from "@/lib/meal-templates";
+
+type MealTemplateRow = {
+  id: string;
+  name: string;
+  mealType: string | null;
+  items: unknown;
+};
 import type { MealEntryType } from "@/types";
 
 const MEAL_TYPES = ["breakfast", "lunch", "snack", "dinner"] as const;
@@ -36,13 +44,16 @@ export function MealsClient({
   logTemplates,
   targets,
   initialSlot,
+  streakAfterFirstLogToday,
 }: {
   initialEntries: MealEntryType[];
   logTemplates: LoggableMealTemplate[];
   targets: MacroSnapshot;
   initialSlot?: string;
+  streakAfterFirstLogToday: number;
 }) {
   const [entries, setEntries] = useState(initialEntries);
+  const [templates, setTemplates] = useState(logTemplates);
   const [mealType, setMealType] = useState(() => resolveInitialMealType(initialSlot));
   const [custom, setCustom] = useState<MacroSnapshot>({ calories: 0, protein: 0, carbs: 0, fat: 0 });
   const [customOpen, setCustomOpen] = useState(false);
@@ -51,6 +62,7 @@ export function MealsClient({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [celebration, setCelebration] = useState<{ calories: number; protein: number; streakDays: number } | null>(null);
 
   const totals = useMemo(
     () => ({
@@ -73,9 +85,32 @@ export function MealsClient({
   );
 
   const templatesForSlot = useMemo(
-    () => logTemplates.filter((t) => t.mealType === mealType),
-    [logTemplates, mealType],
+    () => templates.filter((t) => t.mealType === mealType),
+    [templates, mealType],
   );
+
+  function addSavedTemplate(row: MealTemplateRow, macros: MacroSnapshot) {
+    const slot = normalizeMealType(row.mealType);
+    setTemplates((prev) => {
+      const next: LoggableMealTemplate = {
+        id: row.id,
+        name: row.name,
+        mealType: slot,
+        source: "saved",
+        ...macros,
+      };
+      return [...prev.filter((t) => t.id !== row.id), next];
+    });
+  }
+
+  async function readApiError(res: Response, fallback: string) {
+    try {
+      const body = (await res.json()) as { error?: string };
+      return body.error ?? fallback;
+    } catch {
+      return fallback;
+    }
+  }
 
   const sortedEntries = [...entries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -84,7 +119,7 @@ export function MealsClient({
     setCustomOpen(true);
   }
 
-  async function persistMacros(macros: MacroSnapshot, type: string, label: string) {
+  async function persistMacros(macros: MacroSnapshot, type: string, label: string): Promise<boolean> {
     setIsSaving(true);
     setError("");
     setSuccess("");
@@ -100,8 +135,16 @@ export function MealsClient({
           macros,
         }),
       });
-      if (!res.ok) throw new Error("save failed");
+      if (res.status === 401) {
+        setError("Session expired. Please sign in again.");
+        return false;
+      }
+      if (!res.ok) {
+        setError(await readApiError(res, "Could not log meal. Please retry."));
+        return false;
+      }
       const saved = (await res.json()) as MealEntryType;
+      const wasFirstToday = entries.length === 0;
       setEntries((prev) => [
         ...prev,
         {
@@ -112,13 +155,50 @@ export function MealsClient({
           totalFat: saved.totalFat ?? macros.fat,
         },
       ]);
-      setSuccess(`${label} logged — ${Math.round(macros.calories)} kcal`);
+      if (wasFirstToday) {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("fittrack-first-log-done", "1");
+        }
+        setCelebration({
+          calories: macros.calories,
+          protein: macros.protein,
+          streakDays: streakAfterFirstLogToday,
+        });
+      } else {
+        setSuccess(`${label} logged — ${Math.round(macros.calories)} kcal`);
+      }
       setCustomOpen(false);
+      return true;
     } catch {
       setError("Could not log meal. Please retry.");
+      return false;
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function saveTemplateOnly(macros: MacroSnapshot, slot: string, name: string): Promise<boolean> {
+    const res = await fetch("/api/food", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        name: name.trim(),
+        mealType: normalizeMealType(slot),
+        macros,
+      }),
+    });
+    if (res.status === 401) {
+      setError("Session expired. Please sign in again.");
+      return false;
+    }
+    if (!res.ok) {
+      setError(await readApiError(res, "Could not save template."));
+      return false;
+    }
+    const created = (await res.json()) as MealTemplateRow;
+    addSavedTemplate(created, macros);
+    return true;
   }
 
   async function logTemplate(template: LoggableMealTemplate) {
@@ -139,24 +219,51 @@ export function MealsClient({
       setError("Enter calories (kcal) for this meal.");
       return;
     }
-    await persistMacros(custom, mealType, labelMealType(mealType));
+    if (saveTemplate && templateName.trim().length < 2) {
+      setError("Enter a template name (at least 2 characters) or uncheck save template.");
+      return;
+    }
 
-    if (saveTemplate && templateName.trim().length >= 2) {
+    const logged = await persistMacros(custom, mealType, labelMealType(mealType));
+    if (!logged) return;
+
+    if (saveTemplate) {
+      setIsSaving(true);
       try {
-        await fetch("/api/food", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            name: templateName.trim(),
-            mealType,
-            macros: custom,
-          }),
-        });
-        setSuccess(`${labelMealType(mealType)} logged. Template saved.`);
-      } catch {
-        setError("Meal logged, but template could not be saved.");
+        const saved = await saveTemplateOnly(custom, mealType, templateName);
+        if (saved) {
+          setSuccess(`${labelMealType(mealType)} logged. "${templateName.trim()}" saved — tap it next time.`);
+          setSaveTemplate(false);
+          setTemplateName("");
+        }
+      } finally {
+        setIsSaving(false);
       }
+    }
+  }
+
+  async function saveTemplateWithoutLog() {
+    if (custom.calories <= 0) {
+      setError("Enter calories (kcal) for the template.");
+      return;
+    }
+    if (templateName.trim().length < 2) {
+      setError("Enter a template name (at least 2 characters).");
+      return;
+    }
+    setIsSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const saved = await saveTemplateOnly(custom, mealType, templateName);
+      if (saved) {
+        setSuccess(`"${templateName.trim()}" saved — tap it above to log in one step.`);
+        setSaveTemplate(false);
+        setTemplateName("");
+        setCustomOpen(false);
+      }
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -169,6 +276,14 @@ export function MealsClient({
 
   return (
     <div className="space-y-4 pb-24">
+      {celebration ? (
+        <FirstLogCelebration
+          calories={celebration.calories}
+          protein={celebration.protein}
+          streakDays={celebration.streakDays}
+          onClose={() => setCelebration(null)}
+        />
+      ) : null}
       <SectionHeader
         eyebrow="Daily nutrition"
         title="Calories"
@@ -338,6 +453,16 @@ export function MealsClient({
             >
               {isSaving ? "Saving…" : `Log ${labelMealType(mealType)}`}
             </button>
+            {saveTemplate ? (
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => void saveTemplateWithoutLog()}
+                className="w-full rounded-xl border border-white/12 py-2.5 text-sm font-semibold text-[var(--white)] disabled:opacity-40"
+              >
+                Save template only
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

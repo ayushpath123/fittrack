@@ -26,8 +26,7 @@ function SignupFallback() {
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const oauthCallbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  const installUrl = `/install-app?next=${encodeURIComponent(oauthCallbackUrl)}`;
+  const oauthCallbackUrl = searchParams.get("callbackUrl") || "/onboarding";
   const [oauthLoading, setOauthLoading] = useState<"google" | null>(null);
 
   const {
@@ -45,7 +44,6 @@ function SignupForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: data.email,
-          phone: data.phone,
           password: data.password,
         }),
       });
@@ -56,12 +54,19 @@ function SignupForm() {
         return;
       }
 
-      if (result.verifyUrl) {
-        toast.success("Account created. Please verify your email.");
-      } else {
-        toast.success("Account created. Check your email for verification.");
+      const signInResult = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
+      if (signInResult?.error) {
+        toast.success("Account created. Please sign in.");
+        router.push("/login");
+        return;
       }
-      router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
+
+      toast.success("You're in — let's set up in 30 seconds.");
+      router.push("/onboarding");
     } catch {
       toast.error("Something went wrong. Please try again.");
     }
@@ -70,7 +75,7 @@ function SignupForm() {
   const handleGoogle = async () => {
     setOauthLoading("google");
     try {
-      await signIn("google", { callbackUrl: installUrl });
+      await signIn("google", { callbackUrl: oauthCallbackUrl });
     } catch {
       toast.error("Failed to start Google sign-in. Try again.");
       setOauthLoading(null);
@@ -81,8 +86,8 @@ function SignupForm() {
     <AuthPageChrome>
       <div className="relative z-[1] w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-white">Create your account</h1>
-          <p className="mt-1.5 text-sm text-zinc-400">Start your tracking journey today.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Start in 30 seconds</h1>
+          <p className="mt-1.5 text-sm text-zinc-400">Google is fastest — or email + password below.</p>
         </div>
 
         <AuthCard>
@@ -116,37 +121,14 @@ function SignupForm() {
             />
             <Input
               tone="glass"
-              label="Phone number (with country code)"
-              type="tel"
-              placeholder="+919876543210"
-              autoComplete="tel"
-              error={errors.phone?.message}
-              disabled={isSubmitting || !!oauthLoading}
-              {...register("phone")}
-            />
-
-            <Input
-              tone="glass"
               label="Password"
               type="password"
-              placeholder="Minimum 8 characters"
+              placeholder="At least 8 characters"
               autoComplete="new-password"
               error={errors.password?.message}
               icon={<LockIcon className="h-4 w-4" />}
               disabled={isSubmitting || !!oauthLoading}
               {...register("password")}
-            />
-
-            <Input
-              tone="glass"
-              label="Confirm password"
-              type="password"
-              placeholder="Repeat your password"
-              autoComplete="new-password"
-              error={errors.confirmPassword?.message}
-              icon={<LockIcon className="h-4 w-4" />}
-              disabled={isSubmitting || !!oauthLoading}
-              {...register("confirmPassword")}
             />
 
             <Button
@@ -158,7 +140,7 @@ function SignupForm() {
               loadingText="Creating account..."
               disabled={!!oauthLoading}
             >
-              Create account
+              Continue
             </Button>
           </form>
         </AuthCard>

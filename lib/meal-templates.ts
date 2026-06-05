@@ -120,7 +120,9 @@ export function buildLoggableTemplates(
     });
   }
 
-  return [...presets, ...fromSaved];
+  const savedSlots = new Set(fromSaved.map((t) => t.mealType));
+  const presetsWithoutDupes = presets.filter((p) => !savedSlots.has(p.mealType));
+  return [...presetsWithoutDupes, ...fromSaved];
 }
 
 export function macroItemPayload(macros: MacroSnapshot) {

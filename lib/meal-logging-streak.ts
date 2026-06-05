@@ -10,3 +10,14 @@ export function mealLoggingStreakFromDayKeys(loggedDays: Set<string>): number {
   }
   return streak;
 }
+
+/** Consecutive days ending yesterday — used before today's first meal is logged. */
+export function mealLoggingStreakEndingYesterday(loggedDays: Set<string>): number {
+  let streak = 0;
+  for (let i = 1; ; i++) {
+    const d = toLocalDateKey(getDaysAgo(i));
+    if (loggedDays.has(d)) streak++;
+    else break;
+  }
+  return streak;
+}

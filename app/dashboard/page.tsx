@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { endOfDay, getDaysAgo, startOfDay, toLocalDateKey } from "@/lib/date";
-import { mealLoggingStreakFromDayKeys } from "@/lib/meal-logging-streak";
+import { mealLoggingStreakEndingYesterday, mealLoggingStreakFromDayKeys } from "@/lib/meal-logging-streak";
 import { getRecommendedPreset } from "@/lib/meal-templates";
 import Link from "next/link";
+import { Shield } from "lucide-react";
 import { redirect } from "next/navigation";
 import { requireUserIdForPage } from "@/lib/auth";
 import { SectionHeader } from "@/components/SectionHeader";
@@ -53,8 +54,10 @@ export default async function DashboardPage({
 
   const remaining = Math.round(targets.calories - totals.calories);
   const streakLoggedDays = new Set(streakMeals.map((m) => toLocalDateKey(new Date(m.date))));
-  const streak = mealLoggingStreakFromDayKeys(streakLoggedDays);
   const mealsLoggedToday = meals.length > 0;
+  const streakEndingYesterday = mealLoggingStreakEndingYesterday(streakLoggedDays);
+  const streak = mealsLoggedToday ? mealLoggingStreakFromDayKeys(streakLoggedDays) : streakEndingYesterday;
+  const streakAfterFirstLogToday = streakEndingYesterday + 1;
   const weightLoggedToday = weightLogs7d.some((l) => toLocalDateKey(new Date(l.date)) === todayKey);
   const weightLogsForHome: WeightLogType[] = weightLogs7d.map((l) => ({
     id: l.id,
@@ -83,8 +86,12 @@ export default async function DashboardPage({
         action={
           <Link
             href={`/meals?slot=${recommendedTemplate.mealType}`}
-            className="inline-flex min-h-9 items-center rounded-xl bg-[#BEFF47] px-3 py-2 text-[11px] font-semibold text-[#06080A]"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[rgba(134,239,172,.4)] bg-[#BEFF47] px-2.5 py-2 text-[11px] font-semibold text-[#06080A] shadow-[0_0_14px_rgba(134,239,172,.18)]"
+            title={streak > 0 ? `Protect your ${streak}-day streak — log a meal` : "Log a meal to start your streak"}
           >
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[rgba(20,83,45,.14)]">
+              <Shield size={13} className="text-[#14532D]" strokeWidth={2.5} aria-hidden />
+            </span>
             Log food
           </Link>
         }
@@ -95,6 +102,7 @@ export default async function DashboardPage({
         totals={totals}
         recommendedTemplate={recommendedTemplate}
         streak={streak}
+        streakAfterFirstLogToday={streakAfterFirstLogToday}
         mealsLoggedToday={mealsLoggedToday}
         weightLogs={weightLogsForHome}
         weightLoggedToday={weightLoggedToday}

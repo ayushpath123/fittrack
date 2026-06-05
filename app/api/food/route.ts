@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserIdFromRequest } from "@/lib/auth";
+import { requireUserIdFromRequest, StaleSessionError } from "@/lib/auth";
+import { normalizeMealType } from "@/lib/meal-templates";
 
 export const revalidate = 86400;
 
@@ -46,8 +47,17 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  let userId: string;
   try {
-    const userId = await requireUserIdFromRequest(req);
+    userId = await requireUserIdFromRequest(req);
+  } catch (e) {
+    if (e instanceof StaleSessionError || (e instanceof Error && e.message === "Unauthorized")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    throw e;
+  }
+
+  try {
     const body = (await req.json()) as {
       name?: string;
       mealType?: string;
@@ -99,7 +109,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         userId,
-        mealType: body.mealType?.trim() || null,
+        mealType: body.mealType ? normalizeMealType(body.mealType) : null,
         items: storedItems as object,
       },
     });

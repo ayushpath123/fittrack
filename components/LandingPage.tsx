@@ -36,9 +36,9 @@ const coreFeatures = [
 ] as const;
 
 const guideSteps = [
-  { n: "1", title: "Sign up in seconds", body: "Email or Google — set height, weight, and your goal." },
-  { n: "2", title: "Log your first meal", body: "One tap on a preset template — no searching dishes." },
-  { n: "3", title: "Come back tomorrow", body: "Today shows what is left; Log tab is one tap from Home." },
+  { n: "1", title: "Sign up in seconds", body: "Google one tap, or email + password — no phone required." },
+  { n: "2", title: "30-second setup", body: "Pick goal + weight, then log your first meal in one tap." },
+  { n: "3", title: "Come back tomorrow", body: "Today shows kcal left; tap green to log again." },
 ] as const;
 
 export function LandingPage() {

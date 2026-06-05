@@ -10,27 +10,18 @@ export const phoneLoginSchema = z.object({
   otp: z.string().length(6, "OTP must be 6 digits"),
 });
 
-export const signupSchema = z
-  .object({
-    email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
-    phone: z.string().min(8, "Phone is required"),
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .max(100, "Password is too long")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number"),
-    confirmPassword: z.string().min(1, "Please confirm your password"),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+export const signupSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
+  phone: z.string().optional(),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password is too long"),
+});
 
 export const signupApiSchema = z.object({
   email: z.string().email(),
-  phone: z.string().min(8),
+  phone: z.string().min(8).optional().or(z.literal("")),
   password: z.string().min(8).max(100),
 });
 

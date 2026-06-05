@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   Activity,
   Calendar,
@@ -9,7 +8,6 @@ import {
   ChevronRight,
   Download,
   EllipsisVertical,
-  Flame,
   LogOut,
   Target,
   TrendingUp,
@@ -32,32 +30,9 @@ const profileMenuLinks = [
 ] as const;
 
 export function Sidebars() {
-  const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [loggingStreak, setLoggingStreak] = useState<number | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const { data: session } = useSession();
-
-  const onDashboard = pathname === "/dashboard";
-
-  useEffect(() => {
-    if (!onDashboard || !session?.user) return;
-    let cancelled = false;
-    void fetch("/api/user/logging-streak", { credentials: "include" })
-      .then(async (r) => {
-        if (!r.ok) return { streak: 0 };
-        return (await r.json()) as { streak?: number };
-      })
-      .then((d) => {
-        if (!cancelled) setLoggingStreak(typeof d.streak === "number" ? d.streak : 0);
-      })
-      .catch(() => {
-        if (!cancelled) setLoggingStreak(0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [onDashboard, session?.user]);
 
   const closeAll = () => {
     setProfileOpen(false);
@@ -103,22 +78,6 @@ export function Sidebars() {
             <AppBrand href="/" />
           </div>
           <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-            {onDashboard && (
-              <div
-                className="flex h-9 min-w-[2.75rem] shrink-0 items-center justify-center gap-1 rounded-xl border px-2.5 active:scale-[0.98] transition-transform"
-                style={{
-                  borderColor: "rgba(251,146,60,.35)",
-                  background: "rgba(251,146,60,.14)",
-                }}
-                title="Meal logging streak — consecutive days with at least one meal logged"
-              >
-                <Flame size={15} className="shrink-0 text-orange-400" aria-hidden />
-                <span className="num text-xs font-bold tabular-nums text-[var(--white)]">
-                  {loggingStreak === null ? "—" : loggingStreak}
-                </span>
-                <span className="text-[10px] font-semibold text-white/45">d</span>
-              </div>
-            )}
             <Link
               href="/meals?action=ai"
               aria-label="AI camera calorie estimate"

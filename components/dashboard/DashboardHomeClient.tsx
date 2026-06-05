@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Flame, Scale } from "lucide-react";
+import { FirstLogCelebration } from "@/components/FirstLogCelebration";
 import { DashboardWeightCard } from "@/components/dashboard/DashboardWeightCard";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { PushReminderOptIn } from "@/components/PushReminderOptIn";
@@ -16,6 +17,7 @@ export type DashboardHomeClientProps = {
   totals: MacroSnapshot;
   recommendedTemplate: LoggableMealTemplate;
   streak: number;
+  streakAfterFirstLogToday: number;
   mealsLoggedToday: boolean;
   weightLogs: WeightLogType[];
   weightLoggedToday: boolean;
@@ -34,6 +36,7 @@ export function DashboardHomeClient({
   totals,
   recommendedTemplate,
   streak,
+  streakAfterFirstLogToday,
   mealsLoggedToday,
   weightLogs,
   weightLoggedToday,
@@ -47,6 +50,12 @@ export function DashboardHomeClient({
   const [logError, setLogError] = useState("");
   const [localTotals, setLocalTotals] = useState(totals);
   const [dismissWelcome, setDismissWelcome] = useState(false);
+  const [loggedToday, setLoggedToday] = useState(mealsLoggedToday);
+  const [displayStreak, setDisplayStreak] = useState(streak);
+  const [flameActive, setFlameActive] = useState(false);
+  const [celebration, setCelebration] = useState<{ calories: number; protein: number; streakDays: number } | null>(
+    null,
+  );
 
   const remaining = {
     calories: Math.max(0, Math.round(targets.calories - localTotals.calories)),
@@ -81,6 +90,7 @@ export function DashboardHomeClient({
         }),
       });
       if (!res.ok) throw new Error("save failed");
+      const wasFirstToday = !loggedToday;
       setLocalTotals((prev) => ({
         calories: prev.calories + recommendedTemplate.calories,
         protein: prev.protein + recommendedTemplate.protein,
@@ -90,7 +100,18 @@ export function DashboardHomeClient({
       if (typeof window !== "undefined") {
         window.localStorage.setItem("fittrack-first-log-done", "1");
       }
-      router.refresh();
+      if (wasFirstToday) {
+        setLoggedToday(true);
+        setDisplayStreak(streakAfterFirstLogToday);
+        setFlameActive(true);
+        setCelebration({
+          calories: recommendedTemplate.calories,
+          protein: recommendedTemplate.protein,
+          streakDays: streakAfterFirstLogToday,
+        });
+      } else {
+        router.refresh();
+      }
     } catch {
       setLogError("Could not log meal. Open Log tab to retry.");
     } finally {
@@ -98,8 +119,22 @@ export function DashboardHomeClient({
     }
   }
 
+  function closeCelebration() {
+    setCelebration(null);
+    setFlameActive(false);
+    router.refresh();
+  }
+
   return (
     <div className="space-y-3">
+      {celebration ? (
+        <FirstLogCelebration
+          calories={celebration.calories}
+          protein={celebration.protein}
+          streakDays={celebration.streakDays}
+          onClose={closeCelebration}
+        />
+      ) : null}
       {showWelcome && !dismissWelcome ? (
         <div className="rounded-2xl border border-[rgba(190,255,71,.28)] bg-[rgba(190,255,71,.1)] px-4 py-3">
           <p className="text-sm font-semibold text-[#D6FF9C]">You&apos;re set up</p>
@@ -124,8 +159,12 @@ export function DashboardHomeClient({
             </p>
           </div>
           <div className="flex items-center gap-1.5 rounded-xl border border-orange-400/30 bg-orange-400/10 px-2.5 py-1.5">
-            <Flame size={14} className="text-orange-400" aria-hidden />
-            <span className="text-sm font-bold tabular-nums text-[var(--white)]">{streak}</span>
+            <Flame
+              size={14}
+              className={`text-orange-400 ${flameActive ? "animate-fire-flicker" : ""}`}
+              aria-hidden
+            />
+            <span className="text-sm font-bold tabular-nums text-[var(--white)]">{displayStreak}</span>
             <span className="text-[10px] text-[var(--muted)]">day streak</span>
           </div>
         </div>
@@ -139,7 +178,7 @@ export function DashboardHomeClient({
           {Math.round(localTotals.calories)} / {targets.calories} kcal · Protein {Math.round(localTotals.protein)} /{" "}
           {targets.protein}g ({proteinPct}%)
         </p>
-        {!mealsLoggedToday && streak > 0 ? (
+        {!loggedToday && displayStreak > 0 ? (
           <p className="mt-1 text-xs text-amber-400/90">Log today to keep your streak alive.</p>
         ) : null}
       </div>
