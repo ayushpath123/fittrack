@@ -12,6 +12,10 @@ export async function ensureDefaultMealTemplates(userId: string, targets: MacroT
       userId,
       name: p.name,
       mealType: p.mealType,
+      calories: p.calories,
+      protein: p.protein,
+      carbs: p.carbs,
+      fat: p.fat,
       items: macroItemPayload(p) as object,
     })),
   });

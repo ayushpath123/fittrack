@@ -1,5 +1,4 @@
-import { calculateMealTotals } from "@/lib/calculations";
-import type { FoodItemType, MealItem, MealTemplateType } from "@/types";
+import type { MealTemplate, MealType } from "@/types/meal-template";
 
 export type MacroSnapshot = {
   calories: number;
@@ -10,14 +9,9 @@ export type MacroSnapshot = {
 
 export type MacroTargets = MacroSnapshot;
 
-export type LoggableMealTemplate = MacroSnapshot & {
-  id: string;
-  name: string;
-  mealType: string;
-  source: "preset" | "saved";
-};
+export const MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 
-const MEAL_TYPE_ALIASES: Record<string, string> = {
+const MEAL_TYPE_ALIASES: Record<string, MealType> = {
   breakfast: "breakfast",
   lunch: "lunch",
   snack: "snack",
@@ -26,72 +20,103 @@ const MEAL_TYPE_ALIASES: Record<string, string> = {
   "post-workout": "snack",
 };
 
-export function normalizeMealType(value?: string | null): string {
+export function normalizeMealType(value?: string | null): MealType {
   if (!value) return "lunch";
   const key = value.trim().toLowerCase();
-  return MEAL_TYPE_ALIASES[key] ?? (["breakfast", "lunch", "snack", "dinner"].includes(key) ? key : "lunch");
+  return MEAL_TYPE_ALIASES[key] ?? (MEAL_TYPES.includes(key as MealType) ? (key as MealType) : "lunch");
 }
 
-function isMacroItem(item: unknown): item is MacroSnapshot & { kind: "macros" } {
-  if (!item || typeof item !== "object") return false;
-  const row = item as Record<string, unknown>;
-  return row.kind === "macros" && typeof row.calories === "number";
+export function labelMealType(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-export function parseTemplateMacros(
-  template: MealTemplateType,
-  foodById: Map<string, FoodItemType>,
-): MacroSnapshot | null {
-  const rawItems = template.items as unknown[];
-  if (rawItems.length === 1 && isMacroItem(rawItems[0])) {
-    const m = rawItems[0];
-    return {
-      calories: Math.round(m.calories),
-      protein: Math.round(m.protein),
-      carbs: Math.round(m.carbs),
-      fat: Math.round(m.fat),
-    };
-  }
+/** 5–11 breakfast, 11–16 lunch, 16–19 snack, else dinner */
+export function mealSlotFromHour(hour: number): MealType {
+  if (hour >= 5 && hour < 11) return "breakfast";
+  if (hour >= 11 && hour < 16) return "lunch";
+  if (hour >= 16 && hour < 19) return "snack";
+  return "dinner";
+}
 
-  const mealItems: MealItem[] = [];
-  const foods: FoodItemType[] = [];
-  for (const row of rawItems) {
-    if (!row || typeof row !== "object") continue;
-    const item = row as { foodId?: string; quantityMultiplier?: number };
-    if (!item.foodId) continue;
-    const food = foodById.get(item.foodId);
-    if (!food) return null;
-    mealItems.push({
-      foodId: item.foodId,
-      multiplier: Math.max(0.5, Number(item.quantityMultiplier || 1)),
-    });
-    foods.push(food);
-  }
-  if (!mealItems.length) return null;
+export function detectMealTypeFromTime(date = new Date()): MealType {
+  return mealSlotFromHour(date.getHours());
+}
 
-  const totals = calculateMealTotals(foods, mealItems);
+export function scaleMacros(macros: MacroSnapshot, multiplier: number): MacroSnapshot {
+  const m = Math.max(0.5, Math.min(3, multiplier));
   return {
-    calories: Math.round(totals.totalCalories),
-    protein: Math.round(totals.totalProtein),
-    carbs: Math.round(totals.totalCarbs),
-    fat: Math.round(totals.totalFat),
+    calories: Math.round(macros.calories * m),
+    protein: Math.round(macros.protein * m * 10) / 10,
+    carbs: Math.round(macros.carbs * m * 10) / 10,
+    fat: Math.round(macros.fat * m * 10) / 10,
   };
 }
 
-/** Daily meal slots sized from the user's macro targets (one tap to log). */
-export function buildDailyMealPresets(targets: MacroTargets): LoggableMealTemplate[] {
-  const slots: { id: string; name: string; mealType: string; share: number }[] = [
-    { id: "preset-breakfast", name: "Breakfast", mealType: "breakfast", share: 0.25 },
-    { id: "preset-lunch", name: "Lunch", mealType: "lunch", share: 0.35 },
-    { id: "preset-snack", name: "Snack", mealType: "snack", share: 0.1 },
-    { id: "preset-dinner", name: "Dinner", mealType: "dinner", share: 0.3 },
+export function macroItemPayload(macros: MacroSnapshot) {
+  return [{ kind: "macros" as const, ...macros }];
+}
+
+export function toMealTemplate(row: {
+  id: string;
+  userId: string;
+  name: string;
+  mealType: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  useCount: number;
+  lastUsedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): MealTemplate {
+  return {
+    id: row.id,
+    userId: row.userId,
+    name: row.name,
+    mealType: normalizeMealType(row.mealType),
+    calories: Math.round(row.calories),
+    protein: Math.round(row.protein * 10) / 10,
+    carbs: Math.round(row.carbs * 10) / 10,
+    fat: Math.round(row.fat * 10) / 10,
+    useCount: row.useCount,
+    lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export function sortFrequentlyUsed(templates: MealTemplate[]): MealTemplate[] {
+  return [...templates].sort((a, b) => {
+    if (b.useCount !== a.useCount) return b.useCount - a.useCount;
+    const aTime = a.lastUsedAt ? new Date(a.lastUsedAt).getTime() : 0;
+    const bTime = b.lastUsedAt ? new Date(b.lastUsedAt).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
+export function filterTemplatesByMealType(templates: MealTemplate[], mealType: MealType): MealTemplate[] {
+  return templates.filter((t) => t.mealType === mealType);
+}
+
+export function searchTemplates(templates: MealTemplate[], query: string): MealTemplate[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return templates;
+  return templates.filter((t) => t.name.toLowerCase().includes(q));
+}
+
+/** Daily meal slots sized from the user's macro targets (seeded as saved templates). */
+export function buildDailyMealPresets(targets: MacroTargets): Array<MacroSnapshot & { name: string; mealType: MealType }> {
+  const slots: { name: string; mealType: MealType; share: number }[] = [
+    { name: "Breakfast", mealType: "breakfast", share: 0.25 },
+    { name: "Lunch", mealType: "lunch", share: 0.35 },
+    { name: "Snack", mealType: "snack", share: 0.1 },
+    { name: "Dinner", mealType: "dinner", share: 0.3 },
   ];
 
   return slots.map((slot) => ({
-    id: slot.id,
     name: slot.name,
     mealType: slot.mealType,
-    source: "preset" as const,
     calories: Math.round(targets.calories * slot.share),
     protein: Math.round(targets.protein * slot.share),
     carbs: Math.round(targets.carbs * slot.share),
@@ -99,44 +124,18 @@ export function buildDailyMealPresets(targets: MacroTargets): LoggableMealTempla
   }));
 }
 
-export function buildLoggableTemplates(
+export function getRecommendedPreset(
   targets: MacroTargets,
-  saved: MealTemplateType[],
-  foods: FoodItemType[],
-): LoggableMealTemplate[] {
-  const foodById = new Map(foods.map((f) => [f.id, f]));
-  const presets = buildDailyMealPresets(targets);
-  const fromSaved: LoggableMealTemplate[] = [];
-
-  for (const template of saved) {
-    const macros = parseTemplateMacros(template, foodById);
-    if (!macros) continue;
-    fromSaved.push({
-      id: template.id,
-      name: template.name,
-      mealType: normalizeMealType(template.mealType),
-      source: "saved",
-      ...macros,
-    });
-  }
-
-  const savedSlots = new Set(fromSaved.map((t) => t.mealType));
-  const presetsWithoutDupes = presets.filter((p) => !savedSlots.has(p.mealType));
-  return [...presetsWithoutDupes, ...fromSaved];
-}
-
-export function macroItemPayload(macros: MacroSnapshot) {
-  return [{ kind: "macros" as const, ...macros }];
-}
-
-export function mealSlotFromHour(hour: number): "breakfast" | "lunch" | "snack" | "dinner" {
-  if (hour < 11) return "breakfast";
-  if (hour < 15) return "lunch";
-  if (hour < 18) return "snack";
-  return "dinner";
-}
-
-export function getRecommendedPreset(targets: MacroTargets, hour = new Date().getHours()): LoggableMealTemplate {
+  hour = new Date().getHours(),
+): MacroSnapshot & { name: string; mealType: MealType } {
   const slot = mealSlotFromHour(hour);
   return buildDailyMealPresets(targets).find((p) => p.mealType === slot) ?? buildDailyMealPresets(targets)[1];
 }
+
+/** @deprecated Use MealTemplate directly */
+export type LoggableMealTemplate = MacroSnapshot & {
+  id: string;
+  name: string;
+  mealType: string;
+  source: "preset" | "saved";
+};

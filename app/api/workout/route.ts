@@ -1,27 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ExerciseEntryType } from "@/types";
 import { requireUserIdFromRequest } from "@/lib/auth";
-import { workoutPayloadSchema } from "@/lib/validators";
-import { getWorkoutForDate, upsertWorkoutForDate } from "@/lib/domain/tracking";
+import {
+  createWorkoutLog,
+  listWorkoutLogHistory,
+  listWorkoutLogsForDate,
+} from "@/lib/domain/workout-logs";
+import { ensureDefaultWorkoutTemplates } from "@/lib/default-workout-templates";
+import { workoutLogPayloadSchema } from "@/lib/validators";
 
 export async function GET(req: NextRequest) {
   const userId = await requireUserIdFromRequest(req);
   const dateStr = req.nextUrl.searchParams.get("date") ?? undefined;
-  const workout = await getWorkoutForDate(userId, dateStr);
-  return NextResponse.json(workout);
+  const history = req.nextUrl.searchParams.get("history");
+
+  if (history === "1") {
+    const limit = Math.min(100, parseInt(req.nextUrl.searchParams.get("limit") ?? "50", 10) || 50);
+    const logs = await listWorkoutLogHistory(userId, limit);
+    return NextResponse.json(logs);
+  }
+
+  const logs = await listWorkoutLogsForDate(userId, dateStr);
+  return NextResponse.json(logs);
 }
 
 export async function POST(req: NextRequest) {
   const userId = await requireUserIdFromRequest(req);
-  const parsed = workoutPayloadSchema.safeParse(await req.json());
+  const parsed = workoutLogPayloadSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid workout payload", details: parsed.error.flatten() }, { status: 400 });
   }
-  const { date, exercises, caloriesBurned } = parsed.data as {
-    date: string;
-    exercises: ExerciseEntryType[];
-    caloriesBurned?: number;
-  };
-  const workout = await upsertWorkoutForDate({ userId, date, exercises, caloriesBurned });
-  return NextResponse.json(workout);
+
+  await ensureDefaultWorkoutTemplates(userId);
+
+  const log = await createWorkoutLog({
+    userId,
+    ...parsed.data,
+  });
+
+  return NextResponse.json(log);
 }

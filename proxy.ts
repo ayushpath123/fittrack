@@ -38,6 +38,7 @@ export const config = {
     "/onboarding",
     "/api/meals/:path*",
     "/api/workout/:path*",
+    "/api/workout-templates",
     "/api/weight/:path*",
     "/api/settings/:path*",
     "/api/analytics/:path*",

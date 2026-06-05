@@ -1,10 +1,15 @@
 import { formatRelativeTimeShort } from "@/lib/dashboard-relative-time";
-import { toLocalDateKey } from "@/lib/date";
 import type { ActivityFeedItem } from "@/lib/activity-timeline";
 import type { PersonalRecord } from "@/types/dashboard";
 
 type MealRow = { id: string; mealType: string; totalCalories: number; createdAt: Date };
-type WorkoutRow = { id: string; date: Date; updatedAt: Date };
+type WorkoutRow = {
+  id: string;
+  workoutName: string;
+  duration: number;
+  caloriesBurned: number;
+  createdAt: Date;
+};
 type WeightRow = { id: string; weight: number; createdAt: Date };
 
 export function buildDashboardTimeline(
@@ -35,13 +40,13 @@ export function buildDashboardTimeline(
   }
   for (const w of recentWorkouts) {
     timelineRaw.push({
-      t: new Date(w.updatedAt).getTime(),
+      t: new Date(w.createdAt).getTime(),
       item: {
         id: `wo-${w.id}`,
         kind: "workout",
-        title: "Workout completed",
-        meta: `Session · ${toLocalDateKey(new Date(w.date))}`,
-        timeLabel: formatRelativeTimeShort(w.updatedAt.toISOString()),
+        title: w.workoutName,
+        meta: `${w.duration} min · ${w.caloriesBurned} kcal`,
+        timeLabel: formatRelativeTimeShort(w.createdAt.toISOString()),
         href: "/workout",
       },
     });
@@ -117,16 +122,12 @@ export function buildDashboardTimeline(
   return timeline;
 }
 
-export function countChestWorkouts(workouts: { date: Date; exercises: { name: string }[] }[], from: Date, to: Date): number {
+export function countChestWorkouts(workouts: { workoutDate: Date; workoutType: string }[], from: Date, to: Date): number {
   let count = 0;
   for (const w of workouts) {
-    const t = w.date.getTime();
+    const t = w.workoutDate.getTime();
     if (t < from.getTime() || t > to.getTime()) continue;
-    const hasChest = w.exercises.some((ex) => {
-      const n = ex.name.toLowerCase();
-      return n.includes("bench") || n.includes("chest") || n.includes("push");
-    });
-    if (hasChest) count += 1;
+    if (w.workoutType === "chest") count += 1;
   }
   return count;
 }

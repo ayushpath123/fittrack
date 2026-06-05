@@ -3,20 +3,22 @@ import { endOfDay, getDaysAgo, startOfDay, toLocalDateKey } from "@/lib/date";
 import { mealLoggingStreakEndingYesterday, mealLoggingStreakFromDayKeys } from "@/lib/meal-logging-streak";
 import { buildHealthInsights } from "@/lib/dashboard-insights";
 import { buildDashboardTimeline, countChestWorkouts } from "@/lib/dashboard-timeline";
-import { buildLegacyGamificationSummary } from "@/lib/gamification-legacy";
-import { buildPersonalRecords } from "@/lib/personal-records";
 import {
-  buildTodayWorkoutPlan,
-  countWeeklyWorkouts,
-  estimateCaloriesBurnedToday,
-} from "@/lib/today-workout-plan";
+  getWorkoutSummaryForDate,
+  getWorkoutSummaryForWeek,
+  listWorkoutLogsForDate,
+} from "@/lib/domain/workout-logs";
+import { buildLegacyGamificationSummary } from "@/lib/gamification-legacy";
+import { countWeeklyWorkoutDays } from "@/lib/workout-summary";
+import { workoutTypeLabel } from "@/types/workout";
 import { redirect } from "next/navigation";
 import { requireUserIdForPage } from "@/lib/auth";
-import { buildLoggableTemplates, mealSlotFromHour } from "@/lib/meal-templates";
+import { listMealTemplates } from "@/lib/meal-template-service";
+import { mealSlotFromHour } from "@/lib/meal-templates";
 import { SectionHeader } from "@/components/SectionHeader";
 import { RankBadge } from "@/components/dashboard/RankBadge";
 import { DashboardHomeClient } from "@/components/dashboard/DashboardHomeClient";
-import type { FoodItemType, MealTemplateType, WeightLogType } from "@/types";
+import { serializeWeightLog } from "@/lib/weight-serialize";
 import type { DashboardPayload } from "@/types/dashboard";
 
 const WEEKLY_WORKOUT_TARGET = 4;
@@ -42,19 +44,15 @@ export default async function DashboardPage({
     goals,
     hydrationToday,
     streakMeals,
-    weightLogs7d,
-    todayWorkout,
-    recentCompletedWorkouts,
-    weekWorkouts,
+    weightLogs30d,
+    weekWorkoutLogs,
     workouts90,
     workouts60,
-    allWorkoutsWithExercises,
     recentMealsT,
     recentWorkoutsT,
     recentWeightsT,
     meals7d,
     monthMeals,
-    foods,
     mealTemplates,
   ] = await Promise.all([
     prisma.mealEntry.findMany({ where: { userId, date: { gte: dayStart, lte: endOfDay(today) } } }),
@@ -65,37 +63,21 @@ export default async function DashboardPage({
       select: { date: true },
     }),
     prisma.weightLog.findMany({
-      where: { userId, date: { gte: getDaysAgo(6) } },
+      where: { userId, date: { gte: getDaysAgo(29) } },
       orderBy: { date: "asc" },
-      select: { id: true, weight: true, date: true, waistCm: true },
+      select: { id: true, userId: true, weight: true, date: true, waistCm: true, createdAt: true, updatedAt: true },
     }),
-    prisma.workout.findFirst({
-      where: { userId, date: { gte: dayStart, lte: endOfDay(today) } },
-      include: { exercises: true },
+    prisma.workoutLog.findMany({
+      where: { userId, workoutDate: { gte: weekStart, lte: endOfDay(today) } },
+      select: { workoutDate: true },
     }),
-    prisma.workout.findMany({
-      where: { userId, completed: true },
-      orderBy: { date: "desc" },
-      take: 8,
-      select: { date: true },
+    prisma.workoutLog.findMany({
+      where: { userId, workoutDate: { gte: since90 } },
+      select: { workoutDate: true },
     }),
-    prisma.workout.findMany({
-      where: { userId, completed: true, date: { gte: weekStart, lte: endOfDay(today) } },
-      select: { date: true },
-    }),
-    prisma.workout.findMany({
-      where: { userId, completed: true, date: { gte: since90 } },
-      select: { date: true },
-    }),
-    prisma.workout.findMany({
-      where: { userId, completed: true, date: { gte: prevMonthStart } },
-      include: { exercises: { select: { name: true } } },
-    }),
-    prisma.workout.findMany({
-      where: { userId },
-      orderBy: { date: "desc" },
-      take: 40,
-      include: { exercises: true },
+    prisma.workoutLog.findMany({
+      where: { userId, workoutDate: { gte: prevMonthStart } },
+      select: { workoutDate: true, workoutType: true },
     }),
     prisma.mealEntry.findMany({
       where: { userId },
@@ -103,11 +85,11 @@ export default async function DashboardPage({
       take: 10,
       select: { id: true, mealType: true, totalCalories: true, createdAt: true },
     }),
-    prisma.workout.findMany({
-      where: { userId, completed: true },
-      orderBy: { updatedAt: "desc" },
+    prisma.workoutLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
       take: 10,
-      select: { id: true, date: true, updatedAt: true },
+      select: { id: true, workoutName: true, duration: true, caloriesBurned: true, createdAt: true },
     }),
     prisma.weightLog.findMany({
       where: { userId },
@@ -123,22 +105,7 @@ export default async function DashboardPage({
       where: { userId, date: { gte: monthStart } },
       select: { totalCalories: true },
     }),
-    prisma.foodItem.findMany({
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        baseQuantity: true,
-        baseWeightGrams: true,
-        calories: true,
-        protein: true,
-        carbs: true,
-        fat: true,
-        price: true,
-        barcode: true,
-      },
-    }),
-    prisma.mealTemplate.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
+    listMealTemplates(userId),
   ]);
 
   if (!goals) redirect("/onboarding");
@@ -162,59 +129,39 @@ export default async function DashboardPage({
   const streakEndingYesterday = mealLoggingStreakEndingYesterday(streakLoggedDays);
   const streak = mealsLoggedToday ? mealLoggingStreakFromDayKeys(streakLoggedDays) : streakEndingYesterday;
   const streakAfterFirstLogToday = streakEndingYesterday + 1;
-  const weightLoggedToday = weightLogs7d.some((l) => toLocalDateKey(new Date(l.date)) === todayKey);
-  const weightLogsForHome: WeightLogType[] = weightLogs7d.map((l) => ({
-    id: l.id,
-    date: l.date.toISOString(),
-    weight: l.weight,
-    waistCm: l.waistCm,
-  }));
+  const weightLogsForHome = [...weightLogs30d].reverse().map(serializeWeightLog);
+  const weightLoggedToday = weightLogsForHome.some((l) => toLocalDateKey(new Date(l.date)) === todayKey);
 
   const waterMl = hydrationToday?.totalMl ?? 0;
   const waterGoalMl = goals.waterTargetMl ?? 2000;
   const waterPct = Math.min(100, Math.round((waterMl / waterGoalMl) * 100));
 
-  const todayWorkoutPlan = buildTodayWorkoutPlan({
-    todayWorkout: todayWorkout
-      ? {
-          id: todayWorkout.id,
-          completed: todayWorkout.completed,
-          caloriesBurned: todayWorkout.caloriesBurned,
-          exercises: todayWorkout.exercises.map((e) => ({
-            name: e.name,
-            sets: e.sets,
-            reps: e.reps,
-            weight: e.weight,
-          })),
-        }
-      : null,
-    recentCompletedWorkoutDates: recentCompletedWorkouts.map((w) => toLocalDateKey(new Date(w.date))),
-  });
+  const [todayWorkoutLogs, workoutSummaryToday, workoutSummaryWeek] = await Promise.all([
+    listWorkoutLogsForDate(userId, todayKey),
+    getWorkoutSummaryForDate(userId, todayKey),
+    getWorkoutSummaryForWeek(userId),
+  ]);
 
-  const caloriesBurnedToday = estimateCaloriesBurnedToday(
-    todayWorkout
-      ? {
-          completed: todayWorkout.completed,
-          caloriesBurned: todayWorkout.caloriesBurned,
-          exercises: todayWorkout.exercises.map((e) => ({
-            name: e.name,
-            sets: e.sets,
-            reps: e.reps,
-            weight: e.weight,
-          })),
-        }
-      : null,
-  );
+  const todayWorkoutPlan = {
+    title: todayWorkoutLogs.length ? todayWorkoutLogs[0].workoutName : "Log your activity",
+    muscleGroups: todayWorkoutLogs.length ? [workoutTypeLabel(todayWorkoutLogs[0].workoutType)] : [],
+    durationMin: workoutSummaryToday.totalDurationMin,
+    estimatedCalories: workoutSummaryToday.totalCaloriesBurned,
+    status: todayWorkoutLogs.length ? ("completed" as const) : ("not_started" as const),
+    exerciseCount: todayWorkoutLogs.length,
+  };
 
-  const weeklyWorkoutsCompleted = countWeeklyWorkouts(
-    weekWorkouts.map((w) => new Date(w.date)),
+  const caloriesBurnedToday = workoutSummaryToday.totalCaloriesBurned;
+
+  const weeklyWorkoutsCompleted = countWeeklyWorkoutDays(
+    weekWorkoutLogs.map((w) => new Date(w.workoutDate)),
     weekStart,
     endOfDay(today),
   );
 
   const mealDays = new Set(streakMeals.map((m) => toLocalDateKey(new Date(m.date))));
-  const workoutDays = new Set(workouts90.map((w) => toLocalDateKey(new Date(w.date))));
-  const weightDays = new Set(weightLogs7d.map((l) => toLocalDateKey(new Date(l.date))));
+  const workoutDays = new Set(workouts90.map((w) => toLocalDateKey(new Date(w.workoutDate))));
+  const weightDays = new Set(weightLogs30d.map((l) => toLocalDateKey(new Date(l.date))));
   const hydrationDays = waterMl > 0 ? new Set([todayKey]) : new Set<string>();
 
   const adherence = monthMeals.length
@@ -231,17 +178,7 @@ export default async function DashboardPage({
   });
 
   const xpEarnedToday = gamification.quests.filter((q) => q.completed).reduce((s, q) => s + q.rewardXp, 0);
-  const personalRecords = buildPersonalRecords(
-    allWorkoutsWithExercises.map((w) => ({
-      date: w.date.toISOString(),
-      exercises: w.exercises.map((e) => ({
-        name: e.name,
-        sets: e.sets,
-        reps: e.reps,
-        weight: e.weight,
-      })),
-    })),
-  );
+  const personalRecords: DashboardPayload["personalRecords"] = [];
 
   const timeline = buildDashboardTimeline(recentMealsT, recentWorkoutsT, recentWeightsT, {
     xpEarnedToday,
@@ -262,12 +199,12 @@ export default async function DashboardPage({
     : totals.calories;
 
   const chestThisMonth = countChestWorkouts(
-    workouts60.filter((w) => w.date >= monthStart),
+    workouts60.filter((w) => w.workoutDate >= monthStart),
     monthStart,
     endOfDay(today),
   );
   const chestLastMonth = countChestWorkouts(
-    workouts60.filter((w) => w.date >= prevMonthStart && w.date < prevMonthEnd),
+    workouts60.filter((w) => w.workoutDate >= prevMonthStart && w.workoutDate < prevMonthEnd),
     prevMonthStart,
     prevMonthEnd,
   );
@@ -283,16 +220,10 @@ export default async function DashboardPage({
     weeklyWorkoutsCompleted,
     weeklyWorkoutTarget: WEEKLY_WORKOUT_TARGET,
     hydrationPct: waterPct,
-    workoutCompletedToday: todayWorkout?.completed ?? false,
+    workoutCompletedToday: todayWorkoutLogs.length > 0,
     questsCompleted: gamification.dailyQuestsCompleted,
     questsTotal: gamification.quests.length,
   });
-
-  const logTemplates = buildLoggableTemplates(
-    targets,
-    mealTemplates as unknown as MealTemplateType[],
-    foods as unknown as FoodItemType[],
-  );
 
   const payload: DashboardPayload = {
     dateLabel: today.toLocaleDateString("en", { weekday: "long", day: "numeric", month: "short" }),
@@ -307,6 +238,9 @@ export default async function DashboardPage({
     weightLogs: weightLogsForHome,
     weightLoggedToday,
     todayWorkout: todayWorkoutPlan,
+    todayWorkoutLogs,
+    workoutSummaryToday,
+    workoutSummaryWeek,
     caloriesBurnedToday,
     weeklyWorkoutsCompleted,
     weeklyWorkoutTarget: WEEKLY_WORKOUT_TARGET,
@@ -324,19 +258,12 @@ export default async function DashboardPage({
     timeline,
     insights,
     personalRecords,
-    mealTemplates: logTemplates,
+    mealTemplates,
     initialMealSlot: mealSlotFromHour(today.getHours()),
     showWelcome: sp.welcome === "1",
   };
 
-  const subtitle =
-    todayWorkoutPlan.status === "completed"
-      ? "Workout done — keep fueling and recovering."
-      : todayWorkoutPlan.status === "in_progress"
-        ? "Session in progress. Finish strong."
-        : streak > 0
-          ? `${streak}-day streak active — start today's plan.`
-          : "Your fitness command center for today.";
+  const subtitle = "Your daily fitness snapshot at a glance.";
 
   return (
     <div className="flex min-h-[calc(100dvh-var(--app-header-h)-var(--app-bottom-nav-h)-1.25rem)] flex-col pb-1">

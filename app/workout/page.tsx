@@ -1,29 +1,33 @@
-import { prisma } from "@/lib/prisma";
-import { endOfDay, startOfDay } from "@/lib/date";
 import { WorkoutClient } from "./WorkoutClient";
-import { WorkoutType } from "@/types";
 import { requireUserIdForPage } from "@/lib/auth";
-import { toLocalDateKey } from "@/lib/date";
-import { buildExerciseLastHints } from "@/lib/workoutHints";
+import {
+  getWorkoutSummaryForDate,
+  getWorkoutSummaryForWeek,
+  listWorkoutLogHistory,
+  listWorkoutLogsForDate,
+  listWorkoutTemplates,
+} from "@/lib/domain/workout-logs";
+import { ensureDefaultWorkoutTemplates } from "@/lib/default-workout-templates";
 
 export default async function WorkoutPage() {
   const userId = await requireUserIdForPage();
-  const today = new Date();
-  const todayKey = toLocalDateKey(today);
-  const workout = await prisma.workout.findFirst({
-    where: { userId, date: { gte: startOfDay(today), lte: endOfDay(today) } },
-    include: { exercises: true },
-  });
-  const recent = await prisma.workout.findMany({
-    where: { userId },
-    orderBy: { date: "desc" },
-    take: 5,
-    include: { exercises: true },
-  });
-  const todayWorkout: WorkoutType | null = workout
-    ? { ...workout, date: workout.date.toISOString() }
-    : null;
-  const recentWorkouts: WorkoutType[] = recent.map((item) => ({ ...item, date: item.date.toISOString() }));
-  const exerciseHints = buildExerciseLastHints(recentWorkouts, todayKey);
-  return <WorkoutClient todayWorkout={todayWorkout} recentWorkouts={recentWorkouts} exerciseHints={exerciseHints} />;
+  await ensureDefaultWorkoutTemplates(userId);
+
+  const [todayLogs, historyLogs, templates, todaySummary, weekSummary] = await Promise.all([
+    listWorkoutLogsForDate(userId),
+    listWorkoutLogHistory(userId, 30),
+    listWorkoutTemplates(userId),
+    getWorkoutSummaryForDate(userId),
+    getWorkoutSummaryForWeek(userId),
+  ]);
+
+  return (
+    <WorkoutClient
+      todayLogs={todayLogs}
+      historyLogs={historyLogs}
+      templates={templates}
+      todaySummary={todaySummary}
+      weekSummary={weekSummary}
+    />
+  );
 }

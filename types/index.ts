@@ -21,10 +21,20 @@ export interface MealTemplateType {
   id: string;
   userId?: string;
   name: string;
-  mealType?: string | null;
+  mealType: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  useCount?: number;
+  lastUsedAt?: string | null;
   createdAt?: string;
-  items: { foodId: string; quantityMultiplier: number }[];
+  updatedAt?: string;
+  /** @deprecated Legacy food-based templates */
+  items?: { foodId: string; quantityMultiplier: number }[];
 }
+
+export type { MealTemplate, MealTemplateInput, MealType } from "./meal-template";
 
 export interface MealEntryType {
   id: string;
@@ -72,8 +82,13 @@ export interface WorkoutType {
 
 export interface WeightLogType {
   id: string;
-  date: string;
+  userId?: string;
   weight: number;
+  unit?: "kg";
+  /** ISO datetime when the weight was logged */
+  date: string;
+  loggedAt?: string;
+  createdAt?: string;
   waistCm?: number | null;
 }
 

@@ -27,15 +27,23 @@ model FoodItem {
 }
 
 model MealTemplate {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  mealType  String?
-  items     Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  mealType   String
+  calories   Float
+  protein    Float
+  carbs      Float
+  fat        Float
+  useCount   Int       @default(0)
+  lastUsedAt DateTime?
+  items      Json?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, mealType])
+  @@index([userId, useCount])
   @@index([userId, createdAt])
 }
 
@@ -94,6 +102,40 @@ model Workout {
   @@index([userId, date])
 }
 
+model WorkoutLog {
+  id             String   @id @default(cuid())
+  userId         String
+  workoutName    String
+  workoutType    String
+  duration       Int
+  caloriesBurned Int
+  workoutDate    DateTime
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, workoutDate])
+  @@index([userId, createdAt])
+}
+
+model WorkoutTemplate {
+  id             String    @id @default(cuid())
+  userId         String
+  name           String
+  workoutType    String
+  duration       Int
+  caloriesBurned Int
+  useCount       Int       @default(0)
+  lastUsedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, useCount])
+  @@index([userId, createdAt])
+}
+
 model ExerciseEntry {
   id        String  @id @default(cuid())
   workoutId String
@@ -141,6 +183,8 @@ model User {
   mealTemplates MealTemplate[]
   mealEstimates MealEstimate[]
   workouts    Workout[]
+  workoutLogs WorkoutLog[]
+  workoutTemplates WorkoutTemplate[]
   weightLogs  WeightLog[]
   hydrationLogs HydrationLog[]
   goalSetting GoalSetting?

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUserIdFromRequest } from "@/lib/auth";
-import { weightPayloadSchema } from "@/lib/validators";
 import { listWeightLogs, upsertWeightLog } from "@/lib/domain/tracking";
+import { serializeWeightLog } from "@/lib/weight-serialize";
+import { weightPayloadSchema } from "@/lib/validators";
 
 export async function GET(req: NextRequest) {
   const userId = await requireUserIdFromRequest(req);
   const range = req.nextUrl.searchParams.get("range") ?? "7d";
   const logs = await listWeightLogs(userId, range);
-  return NextResponse.json(logs);
+  return NextResponse.json(logs.map(serializeWeightLog));
 }
 
 export async function POST(req: NextRequest) {
@@ -18,5 +19,5 @@ export async function POST(req: NextRequest) {
   }
   const { date, weight, waistCm } = parsed.data;
   const log = await upsertWeightLog({ userId, date, weight, waistCm });
-  return NextResponse.json(log);
+  return NextResponse.json(serializeWeightLog(log));
 }

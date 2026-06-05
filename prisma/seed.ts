@@ -64,42 +64,6 @@ async function main() {
   const sabji = await prisma.foodItem.findFirst({ where: { name: "Sabji" } });
   const ghee = await prisma.foodItem.findFirst({ where: { name: "Ghee" } });
 
-  await prisma.mealTemplate.createMany({
-    data: [
-      {
-        userId: user.id,
-        name: "Breakfast",
-        mealType: "Breakfast",
-        items: [
-          { foodId: milk!.id, quantityMultiplier: 1 },
-          { foodId: oats!.id, quantityMultiplier: 1 },
-          { foodId: seeds!.id, quantityMultiplier: 1 },
-        ],
-      },
-      {
-        userId: user.id,
-        name: "Pre-Workout",
-        mealType: "Pre-Workout",
-        items: [
-          { foodId: dahi!.id, quantityMultiplier: 1 },
-          { foodId: fruit!.id, quantityMultiplier: 1 },
-        ],
-      },
-      {
-        userId: user.id,
-        name: "Dinner",
-        mealType: "Dinner",
-        items: [
-          { foodId: soy!.id, quantityMultiplier: 1 },
-          { foodId: paneer!.id, quantityMultiplier: 1 },
-          { foodId: rice!.id, quantityMultiplier: 1 },
-          { foodId: sabji!.id, quantityMultiplier: 1 },
-          { foodId: ghee!.id, quantityMultiplier: 1 },
-        ],
-      },
-    ],
-  });
-
   const allFoods = await prisma.foodItem.findMany();
   const foodById = new Map(allFoods.map((f) => [f.id, f as unknown as FoodItemType]));
 
@@ -112,6 +76,62 @@ async function main() {
     const foodsArr = mealItems.map((i) => foodById.get(i.foodId)).filter(Boolean) as FoodItemType[];
     return calculateMealTotals(foodsArr, mealItems);
   }
+
+  const breakfastItems = [
+    { foodId: milk!.id, quantityMultiplier: 1 },
+    { foodId: oats!.id, quantityMultiplier: 1 },
+    { foodId: seeds!.id, quantityMultiplier: 1 },
+  ];
+  const snackItems = [
+    { foodId: dahi!.id, quantityMultiplier: 1 },
+    { foodId: fruit!.id, quantityMultiplier: 1 },
+  ];
+  const dinnerItems = [
+    { foodId: soy!.id, quantityMultiplier: 1 },
+    { foodId: paneer!.id, quantityMultiplier: 1 },
+    { foodId: rice!.id, quantityMultiplier: 1 },
+    { foodId: sabji!.id, quantityMultiplier: 1 },
+    { foodId: ghee!.id, quantityMultiplier: 1 },
+  ];
+
+  const breakfastTotals = totalsFor(breakfastItems.map((i) => ({ foodId: i.foodId, multiplier: i.quantityMultiplier })));
+  const snackTotals = totalsFor(snackItems.map((i) => ({ foodId: i.foodId, multiplier: i.quantityMultiplier })));
+  const dinnerTotals = totalsFor(dinnerItems.map((i) => ({ foodId: i.foodId, multiplier: i.quantityMultiplier })));
+
+  await prisma.mealTemplate.createMany({
+    data: [
+      {
+        userId: user.id,
+        name: "Protein Oats Bowl",
+        mealType: "breakfast",
+        calories: breakfastTotals.totalCalories,
+        protein: breakfastTotals.totalProtein,
+        carbs: breakfastTotals.totalCarbs,
+        fat: breakfastTotals.totalFat,
+        items: breakfastItems,
+      },
+      {
+        userId: user.id,
+        name: "Greek Yogurt Bowl",
+        mealType: "snack",
+        calories: snackTotals.totalCalories,
+        protein: snackTotals.totalProtein,
+        carbs: snackTotals.totalCarbs,
+        fat: snackTotals.totalFat,
+        items: snackItems,
+      },
+      {
+        userId: user.id,
+        name: "Paneer Rice Dinner",
+        mealType: "dinner",
+        calories: dinnerTotals.totalCalories,
+        protein: dinnerTotals.totalProtein,
+        carbs: dinnerTotals.totalCarbs,
+        fat: dinnerTotals.totalFat,
+        items: dinnerItems,
+      },
+    ],
+  });
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

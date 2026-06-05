@@ -24,18 +24,21 @@ const toneConfig = {
   },
 } as const;
 
-export function HealthInsights({ insights }: { insights: HealthInsight[] }) {
+export function HealthInsights({ insights, limit }: { insights: HealthInsight[]; limit?: number }) {
+  const visible = limit ? insights.slice(0, limit) : insights;
+  if (!visible.length) return null;
+
   return (
     <section>
-      <p className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">Health insights</p>
-      <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {insights.map((insight) => {
+      <p className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">Insight</p>
+      <div className={limit === 1 ? "" : "flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"}>
+        {visible.map((insight) => {
           const config = toneConfig[insight.tone];
           const Icon = config.icon;
           return (
             <div
               key={insight.id}
-              className={`min-w-[11.5rem] max-w-[14rem] shrink-0 rounded-xl border p-3 ${config.border} ${config.bg}`}
+              className={`rounded-xl border p-3 ${limit === 1 ? "w-full" : "min-w-[11.5rem] max-w-[14rem] shrink-0"} ${config.border} ${config.bg}`}
             >
               <Icon size={14} className={`mb-2 ${config.iconColor}`} aria-hidden />
               <p className="text-[11px] font-medium leading-snug text-[var(--white)]">{insight.message}</p>

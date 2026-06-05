@@ -136,7 +136,7 @@ export async function upsertWorkoutForDate(params: {
 }
 
 export async function listWeightLogs(userId: string, range?: string) {
-  const days = range === "30d" ? 30 : 7;
+  const days = range === "90d" ? 90 : range === "30d" ? 30 : 7;
   return prisma.weightLog.findMany({
     where: { userId, date: { gte: getDaysAgo(days - 1) } },
     orderBy: { date: "asc" },
@@ -145,11 +145,11 @@ export async function listWeightLogs(userId: string, range?: string) {
 
 export async function upsertWeightLog(params: { userId: string; date: string; weight: number; waistCm?: number }) {
   const { userId, date, weight, waistCm } = params;
-  const d = startOfDay(new Date(date));
+  const day = startOfDay(new Date(date));
   return prisma.weightLog.upsert({
-    where: { userId_date: { userId, date: d } },
+    where: { userId_date: { userId, date: day } },
     update: { weight, ...(waistCm !== undefined ? { waistCm } : {}) },
-    create: { userId, date: d, weight, ...(waistCm !== undefined ? { waistCm } : {}) },
+    create: { userId, date: day, weight, ...(waistCm !== undefined ? { waistCm } : {}) },
   });
 }
 

@@ -4,6 +4,7 @@ import {
   mealPayloadSchema,
   weightPatchSchema,
   weightPayloadSchema,
+  workoutLogPayloadSchema,
   workoutPayloadSchema,
 } from "../../lib/validators";
 
@@ -33,8 +34,38 @@ describe("api payload validators", () => {
     expect(workoutPayloadSchema.safeParse(payload).success).toBe(false);
   });
 
+  it("accepts valid workout log payload", () => {
+    expect(
+      workoutLogPayloadSchema.safeParse({
+        workoutName: "Chest Workout",
+        workoutType: "chest",
+        duration: 45,
+        caloriesBurned: 300,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects workout log with missing name", () => {
+    expect(
+      workoutLogPayloadSchema.safeParse({
+        workoutName: "",
+        workoutType: "chest",
+        duration: 45,
+        caloriesBurned: 300,
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects invalid weight payload", () => {
     expect(weightPayloadSchema.safeParse({ date: "2026-01-01", weight: -5 }).success).toBe(false);
+    expect(weightPayloadSchema.safeParse({ date: "2026-01-01", weight: 10 }).success).toBe(false);
+    expect(weightPayloadSchema.safeParse({ date: "2026-01-01", weight: 350 }).success).toBe(false);
+  });
+
+  it("accepts valid weight in kg range", () => {
+    expect(weightPayloadSchema.safeParse({ date: "2026-01-01", weight: 72.5 }).success).toBe(true);
+    expect(weightPayloadSchema.safeParse({ date: "2026-01-01", weight: 20 }).success).toBe(true);
+    expect(weightPayloadSchema.safeParse({ date: "2026-01-01", weight: 300 }).success).toBe(true);
   });
 
   it("accepts goals payload", () => {

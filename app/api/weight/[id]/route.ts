@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUserIdFromRequest } from "@/lib/auth";
+import { serializeWeightLog } from "@/lib/weight-serialize";
 import { weightPatchSchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const updated = await prisma.weightLog.updateMany({ where: { id, userId }, data });
   if (!updated.count) return NextResponse.json({ error: "Weight log not found" }, { status: 404 });
   const log = await prisma.weightLog.findFirst({ where: { id, userId } });
-  return NextResponse.json(log);
+  if (!log) return NextResponse.json({ error: "Weight log not found" }, { status: 404 });
+  return NextResponse.json(serializeWeightLog(log));
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

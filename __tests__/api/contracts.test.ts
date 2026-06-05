@@ -9,9 +9,10 @@ const mocks = vi.hoisted(() => ({
   foodFindMany: vi.fn(),
   estimateFindFirst: vi.fn(),
   estimateUpdateMany: vi.fn(),
-  workoutFindFirst: vi.fn(),
-  workoutCreate: vi.fn(),
-  workoutUpdate: vi.fn(),
+  workoutLogFindMany: vi.fn(),
+  workoutLogCreate: vi.fn(),
+  workoutTemplateCount: vi.fn(),
+  workoutTemplateCreateMany: vi.fn(),
   weightFindMany: vi.fn(),
   weightUpsert: vi.fn(),
   goalsFindUnique: vi.fn(),
@@ -36,10 +37,13 @@ vi.mock("@/lib/prisma", () => ({
       findFirst: mocks.estimateFindFirst,
       updateMany: mocks.estimateUpdateMany,
     },
-    workout: {
-      findFirst: mocks.workoutFindFirst,
-      create: mocks.workoutCreate,
-      update: mocks.workoutUpdate,
+    workoutLog: {
+      findMany: mocks.workoutLogFindMany,
+      create: mocks.workoutLogCreate,
+    },
+    workoutTemplate: {
+      count: mocks.workoutTemplateCount,
+      createMany: mocks.workoutTemplateCreateMany,
     },
     weightLog: {
       findMany: mocks.weightFindMany,
@@ -67,9 +71,21 @@ describe("api contract tests", () => {
     mocks.foodFindMany.mockResolvedValue([{ id: "food-1", calories: 320, protein: 20, carbs: 30, fat: 10 }]);
     mocks.estimateFindFirst.mockResolvedValue(null);
     mocks.estimateUpdateMany.mockResolvedValue({ count: 1 });
-    mocks.workoutFindFirst.mockResolvedValue(null);
-    mocks.workoutCreate.mockResolvedValue({ id: "w-1", exercises: [{ id: "ex-1" }] });
-    mocks.workoutUpdate.mockResolvedValue({ id: "w-1", exercises: [{ id: "ex-1" }] });
+    mocks.workoutLogFindMany.mockResolvedValue([]);
+    mocks.workoutLogCreate.mockResolvedValue({
+      id: "wl-1",
+      userId: "user-1",
+      workoutName: "Chest Workout",
+      workoutType: "chest",
+      duration: 45,
+      caloriesBurned: 300,
+      workoutDate: new Date("2026-05-01T10:00:00Z"),
+      notes: null,
+      createdAt: new Date("2026-05-01T10:00:00Z"),
+      updatedAt: new Date("2026-05-01T10:00:00Z"),
+    });
+    mocks.workoutTemplateCount.mockResolvedValue(1);
+    mocks.workoutTemplateCreateMany.mockResolvedValue({ count: 0 });
     mocks.weightFindMany.mockResolvedValue([{ id: "wt-1", weight: 75 }]);
     mocks.weightUpsert.mockResolvedValue({ id: "wt-2", weight: 74.5, waistCm: 82 });
     mocks.goalsFindUnique.mockResolvedValue({ calorieTarget: 2000, proteinTarget: 120 });
@@ -97,27 +113,30 @@ describe("api contract tests", () => {
     expect(json).toHaveProperty("details");
   });
 
-  it("workout GET returns object or null contract", async () => {
+  it("workout GET returns array contract", async () => {
     const req = new NextRequest("http://localhost/api/workout?date=2026-05-01");
     const res = await workoutGet(req);
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json === null || typeof json === "object").toBe(true);
+    expect(Array.isArray(json)).toBe(true);
   });
 
-  it("workout POST returns created workout contract", async () => {
+  it("workout POST returns created workout log contract", async () => {
     const req = new NextRequest("http://localhost/api/workout", {
       method: "POST",
       body: JSON.stringify({
-        date: "2026-05-01",
-        exercises: [{ name: "Squat", sets: 3, reps: 8, weight: 80 }],
+        workoutName: "Chest Workout",
+        workoutType: "chest",
+        duration: 45,
+        caloriesBurned: 300,
       }),
     });
     const res = await workoutPost(req);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toHaveProperty("id");
-    expect(Array.isArray(json.exercises)).toBe(true);
+    expect(json).toHaveProperty("workoutName", "Chest Workout");
+    expect(json).toHaveProperty("caloriesBurned", 300);
   });
 
   it("weight GET returns list contract", async () => {

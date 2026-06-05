@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { endOfDay, getDaysAgo, startOfDay, toLocalDateKey } from "@/lib/date";
 import { mealLoggingStreakEndingYesterday } from "@/lib/meal-logging-streak";
-import { buildLoggableTemplates, normalizeMealType } from "@/lib/meal-templates";
+import { listMealTemplates } from "@/lib/meal-template-service";
+import { detectMealTypeFromTime, normalizeMealType } from "@/lib/meal-templates";
 import { MealsClient } from "./MealsClient";
-import { FoodItemType, MealEntryType, MealItem, MealTemplateType } from "@/types";
+import { MealEntryType, MealItem } from "@/types";
 import { requireUserIdForPage } from "@/lib/auth";
 
 const MEAL_SLOTS = ["breakfast", "lunch", "snack", "dinner"] as const;
@@ -11,33 +12,23 @@ const MEAL_SLOTS = ["breakfast", "lunch", "snack", "dinner"] as const;
 export default async function MealsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ slot?: string }>;
+  searchParams: Promise<{ slot?: string; action?: string }>;
 }) {
   const userId = await requireUserIdForPage();
   const sp = await searchParams;
   const slotRaw = sp.slot ? normalizeMealType(sp.slot) : undefined;
   const initialSlot = MEAL_SLOTS.includes(slotRaw as (typeof MEAL_SLOTS)[number])
     ? slotRaw
-    : undefined;
+    : detectMealTypeFromTime();
+  const openAddMeal = sp.action === "add" || sp.action === "log";
+
   const today = new Date();
-  const [entries, foods, templates, goals, streakMeals] = await Promise.all([
-    prisma.mealEntry.findMany({ where: { userId, date: { gte: startOfDay(today), lte: endOfDay(today) } }, orderBy: { date: "asc" } }),
-    prisma.foodItem.findMany({
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        baseQuantity: true,
-        baseWeightGrams: true,
-        calories: true,
-        protein: true,
-        carbs: true,
-        fat: true,
-        price: true,
-        barcode: true,
-      },
+  const [entries, templates, goals, streakMeals] = await Promise.all([
+    prisma.mealEntry.findMany({
+      where: { userId, date: { gte: startOfDay(today), lte: endOfDay(today) } },
+      orderBy: { date: "asc" },
     }),
-    prisma.mealTemplate.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
+    listMealTemplates(userId),
     prisma.goalSetting.findUnique({ where: { userId } }),
     prisma.mealEntry.findMany({
       where: { userId, date: { gte: getDaysAgo(400) } },
@@ -64,19 +55,14 @@ export default async function MealsPage({
     estimateId: e.estimateId ?? null,
   }));
 
-  const logTemplates = buildLoggableTemplates(
-    targets,
-    templates as unknown as MealTemplateType[],
-    foods as unknown as FoodItemType[],
-  );
-
   return (
     <MealsClient
       initialEntries={initialEntries}
-      logTemplates={logTemplates}
+      templates={templates}
       targets={targets}
       initialSlot={initialSlot}
       streakAfterFirstLogToday={streakAfterFirstLogToday}
+      openAddMeal={openAddMeal}
     />
   );
 }

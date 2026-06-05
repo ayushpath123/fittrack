@@ -108,8 +108,8 @@ export async function reconcileDailyActivityForUtcDate(
   );
   const mealsLogged = types.size >= 3;
 
-  const workoutN = await tx.workout.count({
-    where: { userId, completed: true, date: { gte: dayStart, lte: dayEnd } },
+  const workoutN = await tx.workoutLog.count({
+    where: { userId, workoutDate: { gte: dayStart, lte: dayEnd } },
   });
   const workoutLogged = workoutN > 0;
 

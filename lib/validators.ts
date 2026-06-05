@@ -46,12 +46,14 @@ export const workoutExerciseSchema = z.object({
   weight: z.number().nonnegative(),
 });
 
+/** @deprecated Legacy exercise-based workouts */
 export const workoutPayloadSchema = z.object({
   date: z.string().min(1),
   exercises: z.array(workoutExerciseSchema).min(1),
   caloriesBurned: z.number().int().nonnegative().optional(),
 });
 
+/** @deprecated Legacy exercise-based workouts */
 export const workoutPatchSchema = z
   .object({
     completed: z.boolean().optional(),
@@ -61,15 +63,68 @@ export const workoutPatchSchema = z
     message: "No fields to update",
   });
 
+export const workoutTypeSchema = z.enum([
+  "chest",
+  "back",
+  "legs",
+  "shoulders",
+  "arms",
+  "core",
+  "cardio",
+  "full_body",
+  "sports",
+  "other",
+]);
+
+export const workoutLogPayloadSchema = z.object({
+  workoutName: z.string().trim().min(1, "Workout name is required"),
+  workoutType: workoutTypeSchema,
+  duration: z.number().int().positive("Duration must be a positive number"),
+  caloriesBurned: z.number().int().nonnegative("Calories must be a non-negative number"),
+  workoutDate: z.string().min(1).optional(),
+  notes: z.string().trim().optional(),
+  templateId: z.string().min(1).optional(),
+});
+
+export const workoutLogPatchSchema = z
+  .object({
+    workoutName: z.string().trim().min(1).optional(),
+    workoutType: workoutTypeSchema.optional(),
+    duration: z.number().int().positive().optional(),
+    caloriesBurned: z.number().int().nonnegative().optional(),
+    notes: z.union([z.string().trim(), z.null()]).optional(),
+  })
+  .refine(
+    (d) =>
+      d.workoutName !== undefined ||
+      d.workoutType !== undefined ||
+      d.duration !== undefined ||
+      d.caloriesBurned !== undefined ||
+      d.notes !== undefined,
+    { message: "No fields to update" },
+  );
+
+export const workoutTemplatePayloadSchema = z.object({
+  name: z.string().trim().min(1, "Template name is required"),
+  workoutType: workoutTypeSchema,
+  duration: z.number().int().positive(),
+  caloriesBurned: z.number().int().nonnegative(),
+});
+
+const weightKgSchema = z
+  .number({ error: "Weight must be numeric" })
+  .min(20, "Weight must be at least 20 kg")
+  .max(300, "Weight must be at most 300 kg");
+
 export const weightPayloadSchema = z.object({
   date: z.string().min(1),
-  weight: z.number().positive(),
+  weight: weightKgSchema,
   waistCm: z.number().positive().optional(),
 });
 
 export const weightPatchSchema = z
   .object({
-    weight: z.number().positive().optional(),
+    weight: weightKgSchema.optional(),
     waistCm: z.union([z.number().positive(), z.null()]).optional(),
   })
   .refine((d) => d.weight !== undefined || d.waistCm !== undefined, { message: "No fields to update" });
@@ -139,4 +194,22 @@ export const analyticsRangeSchema = z.enum(["7d", "30d", "90d"]).default("30d");
 
 export const analyticsQuerySchema = z.object({
   range: analyticsRangeSchema,
+});
+
+export const mealTypeSchema = z.enum(["breakfast", "lunch", "dinner", "snack"]);
+
+export const mealTemplatePayloadSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  mealType: mealTypeSchema,
+  calories: z.number().nonnegative("Calories must be a number"),
+  protein: z.number().nonnegative("Protein must be a number"),
+  carbs: z.number().nonnegative("Carbs must be a number"),
+  fat: z.number().nonnegative("Fat must be a number"),
+});
+
+export const mealTemplateLogSchema = z.object({
+  date: z.string().min(1).optional(),
+  mealType: mealTypeSchema.optional(),
+  servings: z.number().min(0.5).max(3).optional(),
+  macros: macroSnapshotSchema.optional(),
 });

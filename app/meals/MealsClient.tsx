@@ -1,68 +1,55 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { Camera, Settings2 } from "lucide-react";
-import { EmptyState } from "@/components/EmptyState";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Camera, Plus, Settings2 } from "lucide-react";
+import toast from "react-hot-toast";
+import { AddMealFlow } from "@/components/meal-templates/AddMealFlow";
+import { MealTypeTabs } from "@/components/meal-templates/MealTypeTabs";
+import { TemplateLogSheet } from "@/components/meal-templates/TemplateLogSheet";
 import { MealCard } from "@/components/MealCard";
 import { SectionHeader } from "@/components/SectionHeader";
-import { Toast } from "@/components/Toast";
 import { FirstLogCelebration } from "@/components/FirstLogCelebration";
-import type { LoggableMealTemplate, MacroSnapshot } from "@/lib/meal-templates";
-import { normalizeMealType } from "@/lib/meal-templates";
-
-type MealTemplateRow = {
-  id: string;
-  name: string;
-  mealType: string | null;
-  items: unknown;
-};
+import { Button } from "@/components/ui/Button";
+import {
+  detectMealTypeFromTime,
+  filterTemplatesByMealType,
+  labelMealType,
+  normalizeMealType,
+} from "@/lib/meal-templates";
+import type { MacroSnapshot } from "@/lib/meal-templates";
 import type { MealEntryType } from "@/types";
+import type { MealTemplate, MealType } from "@/types/meal-template";
 
-const MEAL_TYPES = ["breakfast", "lunch", "snack", "dinner"] as const;
-
-function labelMealType(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-function mealTypeFromHour(hour: number) {
-  if (hour < 11) return "breakfast";
-  if (hour < 15) return "lunch";
-  if (hour < 18) return "snack";
-  return "dinner";
-}
-
-function resolveInitialMealType(initialSlot?: string) {
-  if (initialSlot && MEAL_TYPES.includes(initialSlot as (typeof MEAL_TYPES)[number])) {
-    return initialSlot;
-  }
-  return mealTypeFromHour(new Date().getHours());
-}
-
-export function MealsClient({
-  initialEntries,
-  logTemplates,
-  targets,
-  initialSlot,
-  streakAfterFirstLogToday,
-}: {
+type MealsClientProps = {
   initialEntries: MealEntryType[];
-  logTemplates: LoggableMealTemplate[];
+  templates: MealTemplate[];
   targets: MacroSnapshot;
   initialSlot?: string;
   streakAfterFirstLogToday: number;
-}) {
+  openAddMeal?: boolean;
+};
+
+export function MealsClient({
+  initialEntries,
+  templates: initialTemplates,
+  targets,
+  initialSlot,
+  streakAfterFirstLogToday,
+  openAddMeal = false,
+}: MealsClientProps) {
   const [entries, setEntries] = useState(initialEntries);
-  const [templates, setTemplates] = useState(logTemplates);
-  const [mealType, setMealType] = useState(() => resolveInitialMealType(initialSlot));
-  const [custom, setCustom] = useState<MacroSnapshot>({ calories: 0, protein: 0, carbs: 0, fat: 0 });
-  const [customOpen, setCustomOpen] = useState(false);
-  const [saveTemplate, setSaveTemplate] = useState(false);
-  const [templateName, setTemplateName] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [templates, setTemplates] = useState(initialTemplates);
+  const [mealType, setMealType] = useState<MealType>(() =>
+    initialSlot ? normalizeMealType(initialSlot) : detectMealTypeFromTime(),
+  );
+  const [addMealOpen, setAddMealOpen] = useState(openAddMeal);
+  const [quickLogTemplate, setQuickLogTemplate] = useState<MealTemplate | null>(null);
   const [celebration, setCelebration] = useState<{ calories: number; protein: number; streakDays: number } | null>(null);
+
+  useEffect(() => {
+    if (openAddMeal) setAddMealOpen(true);
+  }, [openAddMeal]);
 
   const totals = useMemo(
     () => ({
@@ -85,193 +72,87 @@ export function MealsClient({
   );
 
   const templatesForSlot = useMemo(
-    () => templates.filter((t) => t.mealType === mealType),
+    () => filterTemplatesByMealType(templates, mealType),
     [templates, mealType],
   );
 
-  function addSavedTemplate(row: MealTemplateRow, macros: MacroSnapshot) {
-    const slot = normalizeMealType(row.mealType);
-    setTemplates((prev) => {
-      const next: LoggableMealTemplate = {
-        id: row.id,
-        name: row.name,
-        mealType: slot,
-        source: "saved",
-        ...macros,
-      };
-      return [...prev.filter((t) => t.id !== row.id), next];
-    });
-  }
+  const sortedEntries = [...entries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  async function readApiError(res: Response, fallback: string) {
-    try {
-      const body = (await res.json()) as { error?: string };
-      return body.error ?? fallback;
-    } catch {
-      return fallback;
+  function handleLogged(entry: MealEntryType, macros: MacroSnapshot, templateId?: string) {
+    const wasFirstToday = entries.length === 0;
+    setEntries((prev) => [...prev, entry]);
+    if (templateId) {
+      setTemplates((prev) =>
+        prev.map((t) =>
+          t.id === templateId
+            ? { ...t, useCount: t.useCount + 1, lastUsedAt: new Date().toISOString() }
+            : t,
+        ),
+      );
+    }
+    if (wasFirstToday) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("fittrack-first-log-done", "1");
+      }
+      setCelebration({
+        calories: macros.calories,
+        protein: macros.protein,
+        streakDays: streakAfterFirstLogToday,
+      });
+    } else {
+      toast.success("Meal logged successfully");
     }
   }
 
-  const sortedEntries = [...entries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  function openCustomWithRemaining() {
-    setCustom({ ...remaining });
-    setCustomOpen(true);
-  }
-
-  async function persistMacros(macros: MacroSnapshot, type: string, label: string): Promise<boolean> {
-    setIsSaving(true);
-    setError("");
-    setSuccess("");
+  async function logFromSheet(payload: {
+    servings: number;
+    macros: MacroSnapshot;
+    mealType: MealType;
+  }): Promise<boolean> {
+    if (!quickLogTemplate) return false;
     try {
-      const res = await fetch("/api/meals", {
+      const res = await fetch(`/api/meal-templates/${quickLogTemplate.id}/log`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
           date: new Date().toISOString().split("T")[0],
-          mealType: normalizeMealType(type),
-          items: [],
-          macros,
+          mealType: payload.mealType,
+          servings: payload.servings,
+          macros: payload.macros,
         }),
       });
-      if (res.status === 401) {
-        setError("Session expired. Please sign in again.");
-        return false;
-      }
       if (!res.ok) {
-        setError(await readApiError(res, "Could not log meal. Please retry."));
+        toast.error("Could not log meal.");
         return false;
       }
-      const saved = (await res.json()) as MealEntryType;
-      const wasFirstToday = entries.length === 0;
-      setEntries((prev) => [
-        ...prev,
+      const entry = (await res.json()) as MealEntryType;
+      handleLogged(
         {
-          ...saved,
-          date: String(saved.date),
-          items: [],
-          totalCarbs: saved.totalCarbs ?? macros.carbs,
-          totalFat: saved.totalFat ?? macros.fat,
+          ...entry,
+          date: String(entry.date),
+          totalCarbs: entry.totalCarbs ?? payload.macros.carbs,
+          totalFat: entry.totalFat ?? payload.macros.fat,
         },
-      ]);
-      if (wasFirstToday) {
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("fittrack-first-log-done", "1");
-        }
-        setCelebration({
-          calories: macros.calories,
-          protein: macros.protein,
-          streakDays: streakAfterFirstLogToday,
-        });
-      } else {
-        setSuccess(`${label} logged — ${Math.round(macros.calories)} kcal`);
-      }
-      setCustomOpen(false);
+        payload.macros,
+        quickLogTemplate.id,
+      );
+      setQuickLogTemplate(null);
       return true;
     } catch {
-      setError("Could not log meal. Please retry.");
+      toast.error("Could not log meal.");
       return false;
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function saveTemplateOnly(macros: MacroSnapshot, slot: string, name: string): Promise<boolean> {
-    const res = await fetch("/api/food", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        name: name.trim(),
-        mealType: normalizeMealType(slot),
-        macros,
-      }),
-    });
-    if (res.status === 401) {
-      setError("Session expired. Please sign in again.");
-      return false;
-    }
-    if (!res.ok) {
-      setError(await readApiError(res, "Could not save template."));
-      return false;
-    }
-    const created = (await res.json()) as MealTemplateRow;
-    addSavedTemplate(created, macros);
-    return true;
-  }
-
-  async function logTemplate(template: LoggableMealTemplate) {
-    await persistMacros(
-      {
-        calories: template.calories,
-        protein: template.protein,
-        carbs: template.carbs,
-        fat: template.fat,
-      },
-      template.mealType,
-      template.name,
-    );
-  }
-
-  async function logCustom() {
-    if (custom.calories <= 0) {
-      setError("Enter calories (kcal) for this meal.");
-      return;
-    }
-    if (saveTemplate && templateName.trim().length < 2) {
-      setError("Enter a template name (at least 2 characters) or uncheck save template.");
-      return;
-    }
-
-    const logged = await persistMacros(custom, mealType, labelMealType(mealType));
-    if (!logged) return;
-
-    if (saveTemplate) {
-      setIsSaving(true);
-      try {
-        const saved = await saveTemplateOnly(custom, mealType, templateName);
-        if (saved) {
-          setSuccess(`${labelMealType(mealType)} logged. "${templateName.trim()}" saved — tap it next time.`);
-          setSaveTemplate(false);
-          setTemplateName("");
-        }
-      } finally {
-        setIsSaving(false);
-      }
-    }
-  }
-
-  async function saveTemplateWithoutLog() {
-    if (custom.calories <= 0) {
-      setError("Enter calories (kcal) for the template.");
-      return;
-    }
-    if (templateName.trim().length < 2) {
-      setError("Enter a template name (at least 2 characters).");
-      return;
-    }
-    setIsSaving(true);
-    setError("");
-    setSuccess("");
-    try {
-      const saved = await saveTemplateOnly(custom, mealType, templateName);
-      if (saved) {
-        setSuccess(`"${templateName.trim()}" saved — tap it above to log in one step.`);
-        setSaveTemplate(false);
-        setTemplateName("");
-        setCustomOpen(false);
-      }
-    } finally {
-      setIsSaving(false);
     }
   }
 
   async function deleteMeal(id: string) {
-    setError("");
     const res = await fetch(`/api/meals/${id}`, { method: "DELETE", credentials: "include" });
-    if (!res.ok) return setError("Could not delete meal.");
+    if (!res.ok) {
+      toast.error("Could not delete meal.");
+      return;
+    }
     setEntries((prev) => prev.filter((e) => e.id !== id));
+    toast.success("Meal removed");
   }
 
   return (
@@ -284,12 +165,20 @@ export function MealsClient({
           onClose={() => setCelebration(null)}
         />
       ) : null}
+
       <SectionHeader
         eyebrow="Daily nutrition"
         title="Calories"
-        subtitle="Tap a template — adjust numbers only if you need to."
+        subtitle="Log meals in seconds with your saved templates."
         action={
           <div className="flex gap-1.5">
+            <Link
+              href="/meals/templates"
+              className="inline-flex min-h-10 items-center rounded-xl border border-white/12 bg-white/[0.05] px-2.5 text-[var(--muted)]"
+              aria-label="Meal templates"
+            >
+              <BookOpen size={16} />
+            </Link>
             <Link
               href="/settings"
               className="inline-flex min-h-10 items-center rounded-xl border border-white/12 bg-white/[0.05] px-2.5 text-[var(--muted)]"
@@ -308,6 +197,10 @@ export function MealsClient({
         }
       />
 
+      <Button className="w-full" icon={<Plus size={16} />} onClick={() => setAddMealOpen(true)}>
+        Add Meal
+      </Button>
+
       <div className="premium-card rounded-2xl p-3.5">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">Today vs targets</p>
         <div className="mt-2 grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
@@ -323,7 +216,11 @@ export function MealsClient({
               <p className="text-[9px] uppercase tracking-wide text-[var(--hint)]">{label}</p>
               <p className="mt-0.5 text-sm font-bold text-[var(--white)]">
                 {Math.round(done)}
-                <span className="text-[10px] font-medium text-[var(--muted)]"> / {target}{unit === "kcal" ? "" : unit}</span>
+                <span className="text-[10px] font-medium text-[var(--muted)]">
+                  {" "}
+                  / {target}
+                  {unit === "kcal" ? "" : unit}
+                </span>
               </p>
               <p className="text-[10px] text-[#B8E86A]">{left} left</p>
             </div>
@@ -332,139 +229,38 @@ export function MealsClient({
       </div>
 
       <div>
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">Meal slot</p>
-        <div className="flex gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] p-1">
-          {MEAL_TYPES.map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => setMealType(type)}
-              className={`flex-1 rounded-[10px] py-2 text-[11px] font-semibold transition-all ${
-                mealType === type ? "bg-[#BEFF47] text-[#06080A]" : "text-[var(--muted)]"
-              }`}
-            >
-              {labelMealType(type)}
-            </button>
-          ))}
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">Quick templates</p>
+          <Link href="/meals/templates" className="text-[10px] font-semibold text-[#B8E86A]">
+            Manage
+          </Link>
         </div>
-      </div>
-
-      <div>
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">
-          Templates for {labelMealType(mealType)}
-        </p>
+        <MealTypeTabs value={mealType} onChange={setMealType} />
         {templatesForSlot.length === 0 ? (
-          <p className="text-xs text-[var(--muted)]">No templates for this slot. Use adjust numbers below.</p>
+          <p className="mt-3 text-xs text-[var(--muted)]">
+            No {labelMealType(mealType)} templates yet.{" "}
+            <Link href="/meals/templates" className="font-semibold text-[#B8E86A]">
+              Create one
+            </Link>
+          </p>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {templatesForSlot.map((template) => (
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {templatesForSlot.slice(0, 4).map((template) => (
               <button
                 key={template.id}
                 type="button"
-                disabled={isSaving}
-                onClick={() => void logTemplate(template)}
-                className="premium-card rounded-xl p-3.5 text-left transition-transform active:scale-[0.98] disabled:opacity-50"
+                onClick={() => setQuickLogTemplate(template)}
+                className="premium-card rounded-xl p-3 text-left transition-transform active:scale-[0.98]"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-[var(--white)]">{template.name}</p>
-                  <span className="shrink-0 rounded-md bg-[rgba(190,255,71,.12)] px-1.5 py-0.5 text-[9px] font-semibold text-[#B8E86A]">
-                    {template.source === "preset" ? "Daily" : "Saved"}
-                  </span>
-                </div>
-                <p className="mt-2 text-lg font-bold text-[#BEFF47]">{template.calories} kcal</p>
-                <p className="mt-1 text-[11px] text-[var(--muted)]">
+                <p className="text-sm font-semibold text-[var(--white)]">{template.name}</p>
+                <p className="mt-1 text-lg font-bold text-[#BEFF47]">{template.calories} kcal</p>
+                <p className="mt-0.5 text-[10px] text-[var(--muted)]">
                   P {template.protein}g · C {template.carbs}g · F {template.fat}g
                 </p>
-                <p className="mt-2 text-[10px] font-semibold text-[var(--hint)]">Tap to log</p>
               </button>
             ))}
           </div>
         )}
-      </div>
-
-      <div className="premium-card rounded-2xl p-4">
-        <button
-          type="button"
-          onClick={() => (customOpen ? setCustomOpen(false) : openCustomWithRemaining())}
-          className="flex w-full items-center justify-between text-left"
-        >
-          <div>
-            <p className="text-sm font-semibold text-[var(--white)]">Adjust numbers</p>
-            <p className="text-[11px] text-[var(--muted)]">Prefilled with what&apos;s left today</p>
-          </div>
-          <span className="text-xs font-semibold text-[#B8E86A]">{customOpen ? "Hide" : "Adjust"}</span>
-        </button>
-
-        {customOpen ? (
-          <div className="mt-3 space-y-3 border-t border-white/[0.08] pt-3">
-            <div className="grid grid-cols-2 gap-2">
-              {(
-                [
-                  ["Calories", "calories", "kcal"],
-                  ["Protein", "protein", "g"],
-                  ["Carbs", "carbs", "g"],
-                  ["Fat", "fat", "g"],
-                ] as const
-              ).map(([label, key, unit]) => (
-                <label key={key} className="block">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                    {label} ({unit})
-                  </span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    value={custom[key]}
-                    onChange={(e) =>
-                      setCustom((prev) => ({
-                        ...prev,
-                        [key]: Math.max(0, Number(e.target.value) || 0),
-                      }))
-                    }
-                    className="metric-value mt-1 w-full rounded-xl border border-white/12 bg-white/[0.05] px-3 py-2 text-sm font-semibold text-[var(--white)] focus:border-[#BEFF47]/40 focus:outline-none"
-                  />
-                </label>
-              ))}
-            </div>
-
-            <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
-              <input
-                type="checkbox"
-                checked={saveTemplate}
-                onChange={(e) => setSaveTemplate(e.target.checked)}
-                className="rounded border-white/20"
-              />
-              Save as reusable template
-            </label>
-            {saveTemplate ? (
-              <input
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="Template name (e.g. Office lunch)"
-                className="w-full rounded-xl border border-white/12 bg-white/[0.05] px-3 py-2 text-sm text-[var(--white)] focus:outline-none"
-              />
-            ) : null}
-
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={() => void logCustom()}
-              className="w-full rounded-xl bg-[#BEFF47] py-3 text-sm font-semibold text-[#06080A] disabled:opacity-40"
-            >
-              {isSaving ? "Saving…" : `Log ${labelMealType(mealType)}`}
-            </button>
-            {saveTemplate ? (
-              <button
-                type="button"
-                disabled={isSaving}
-                onClick={() => void saveTemplateWithoutLog()}
-                className="w-full rounded-xl border border-white/12 py-2.5 text-sm font-semibold text-[var(--white)] disabled:opacity-40"
-              >
-                Save template only
-              </button>
-            ) : null}
-          </div>
-        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -479,19 +275,40 @@ export function MealsClient({
             protein={entry.totalProtein}
             color="green"
             time={new Date(entry.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            onDelete={() => deleteMeal(entry.id)}
+            onDelete={() => void deleteMeal(entry.id)}
           />
         ))}
         {sortedEntries.length === 0 ? (
-          <EmptyState
-            title="Nothing logged yet"
-            subtitle="Tap a template above to log your target macros in one step."
-          />
+          <div className="premium-card rounded-2xl p-6 text-center">
+            <p className="text-sm font-semibold text-[var(--white)]">Nothing logged yet</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">Tap Add Meal to log from a template in under 5 seconds.</p>
+            <button
+              type="button"
+              onClick={() => setAddMealOpen(true)}
+              className="mt-3 inline-flex rounded-xl border border-[rgba(190,255,71,.35)] bg-[rgba(190,255,71,.12)] px-3 py-1.5 text-xs font-semibold text-[#B8E86A]"
+            >
+              Add Meal
+            </button>
+          </div>
         ) : null}
       </div>
 
-      <Toast message={error} type="error" />
-      <Toast message={success} type="info" />
+      <AddMealFlow
+        open={addMealOpen}
+        onClose={() => setAddMealOpen(false)}
+        templates={templates}
+        onLogged={(entry, macros) => handleLogged(entry, macros)}
+        onTemplatesChange={setTemplates}
+        initialMealType={mealType}
+      />
+
+      <TemplateLogSheet
+        open={Boolean(quickLogTemplate)}
+        template={quickLogTemplate}
+        mealType={mealType}
+        onClose={() => setQuickLogTemplate(null)}
+        onLog={logFromSheet}
+      />
     </div>
   );
 }

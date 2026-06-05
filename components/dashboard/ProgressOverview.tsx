@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { PremiumStatRing } from "@/components/dashboard/PremiumStatRing";
-import { WeightMiniChart } from "@/components/WeightMiniChart";
 import type { WeightLogType } from "@/types";
 
 type ProgressOverviewProps = {
@@ -25,11 +24,6 @@ function waistTrend(logs: WeightLogType[]): number | null {
   return withWaist[withWaist.length - 1].waistCm! - withWaist[0].waistCm!;
 }
 
-function weightTrend(logs: WeightLogType[]): number | null {
-  if (logs.length < 2) return null;
-  return logs[logs.length - 1].weight - logs[0].weight;
-}
-
 export function ProgressOverview({
   weightLogs,
   caloriesConsumed,
@@ -45,7 +39,6 @@ export function ProgressOverview({
   const [pending, setPending] = useState(false);
 
   const latestWeight = weightLogs[weightLogs.length - 1];
-  const wTrend = weightTrend(weightLogs);
   const waistDelta = waistTrend(weightLogs);
   const caloriePct = Math.min(100, Math.round((caloriesConsumed / Math.max(1, calorieTarget)) * 100));
   const workoutPct = Math.min(100, Math.round((weeklyWorkoutsCompleted / Math.max(1, weeklyWorkoutTarget)) * 100));
@@ -150,20 +143,6 @@ export function ProgressOverview({
           </div>
         </div>
 
-        {weightLogs.length > 1 ? (
-          <div className="mt-3 min-w-0 border-t border-white/[0.06] pt-3">
-            <div className="mb-1 flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">Weight trend</p>
-              {wTrend !== null ? (
-                <span className={`text-[10px] font-semibold ${wTrend <= 0 ? "text-emerald-400" : "text-amber-400"}`}>
-                  {wTrend > 0 ? "+" : ""}
-                  {wTrend.toFixed(1)} kg (7d)
-                </span>
-              ) : null}
-            </div>
-            <WeightMiniChart data={weightLogs} />
-          </div>
-        ) : null}
       </div>
     </section>
   );

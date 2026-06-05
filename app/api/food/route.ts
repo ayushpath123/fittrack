@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUserIdFromRequest, StaleSessionError } from "@/lib/auth";
-import { normalizeMealType } from "@/lib/meal-templates";
+import { macroItemPayload, normalizeMealType, toMealTemplate } from "@/lib/meal-templates";
 
 export const revalidate = 86400;
 
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     prisma.foodItem.findMany({ orderBy: { name: "asc" } }),
     prisma.mealTemplate.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
   ]);
-  return NextResponse.json({ foods, templates });
+  return NextResponse.json({ foods, templates: templates.map(toMealTemplate) });
 }
 
 export async function POST(req: NextRequest) {
@@ -69,11 +69,16 @@ export async function POST(req: NextRequest) {
     const items = Array.isArray(body.items) ? body.items : [];
     const macros = body.macros;
 
-    if (!name || name.length < 2) {
+    if (!name || name.length < 1) {
       return NextResponse.json({ error: "Template name is required." }, { status: 400 });
     }
 
+    let calories = 0;
+    let protein = 0;
+    let carbs = 0;
+    let fat = 0;
     let storedItems: unknown;
+
     if (
       macros &&
       Number.isFinite(macros.calories) &&
@@ -81,7 +86,11 @@ export async function POST(req: NextRequest) {
       Number.isFinite(macros.carbs) &&
       Number.isFinite(macros.fat)
     ) {
-      storedItems = [{ kind: "macros", ...macros }];
+      calories = macros.calories;
+      protein = macros.protein;
+      carbs = macros.carbs;
+      fat = macros.fat;
+      storedItems = macroItemPayload(macros);
     } else {
       if (items.length === 0) {
         return NextResponse.json({ error: "Provide macros or at least one food item." }, { status: 400 });
@@ -109,12 +118,16 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         userId,
-        mealType: body.mealType ? normalizeMealType(body.mealType) : null,
+        mealType: normalizeMealType(body.mealType),
+        calories,
+        protein,
+        carbs,
+        fat,
         items: storedItems as object,
       },
     });
 
-    return NextResponse.json(created, { status: 201 });
+    return NextResponse.json(toMealTemplate(created), { status: 201 });
   } catch {
     return NextResponse.json({ error: "Could not save template." }, { status: 500 });
   }

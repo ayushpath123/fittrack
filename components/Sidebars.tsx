@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   Activity,
+  BookOpen,
   Calendar,
   Camera,
   ChevronRight,
@@ -21,6 +22,7 @@ import toast from "react-hot-toast";
 
 const profileMenuLinks = [
   { href: "/dashboard", label: "Home", hint: "Today snapshot", icon: TrendingUp },
+  { href: "/meals/templates", label: "Meal Templates", hint: "Save meals for fast logging", icon: BookOpen },
   { href: "/activity", label: "Activity & game", hint: "Feed, XP, leaderboards", icon: Activity },
   { href: "/analytics", label: "Stats", hint: "Trends & adherence", icon: Zap },
   { href: "/calendar", label: "Calendar", hint: "Day-by-day history", icon: Calendar },

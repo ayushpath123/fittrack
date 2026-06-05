@@ -297,6 +297,12 @@ export default function SettingsPage() {
         <span className="text-gray-300 dark:text-slate-600" aria-hidden>
           ·
         </span>
+        <a href="/meals/templates" className="text-[#BEFF47] dark:text-[#B8E86A] font-medium hover:underline">
+          Meal Templates
+        </a>
+        <span className="text-gray-300 dark:text-slate-600" aria-hidden>
+          ·
+        </span>
         <a href="#reminders" className="text-[#BEFF47] dark:text-[#B8E86A] font-medium hover:underline">
           Reminders
         </a>
