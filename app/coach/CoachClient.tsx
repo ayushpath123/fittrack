@@ -82,11 +82,9 @@ export function CoachClient() {
       });
       const data = (await res.json()) as {
         error?: string;
-        diagnosis?: string;
-        key_issues?: string[];
-        action_plan?: string[];
-        expected_impact?: string;
-        confidence?: number;
+        reply?: string;
+        actions?: CoachAction[];
+        toolTrace?: { name: string }[];
         paywall?: boolean;
       };
       if (res.status === 403 && data.error === "PRO_REQUIRED") {
@@ -95,22 +93,14 @@ export function CoachClient() {
         setError("AI Coach is part of Pro. Upgrade to continue.");
         return;
       }
-      if (!res.ok || !data.diagnosis) {
+      if (!res.ok || !data.reply) {
         setChat((prev) => prev.slice(0, -1));
         setError(data.error ?? "Coach could not answer right now.");
         return;
       }
-      const coachReply = [
-        data.diagnosis,
-        Array.isArray(data.key_issues) && data.key_issues.length ? `Key issues: ${data.key_issues.join(", ")}` : "",
-        Array.isArray(data.action_plan) && data.action_plan.length ? `Action plan:\n- ${data.action_plan.join("\n- ")}` : "",
-        data.expected_impact ? `Expected impact: ${data.expected_impact}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n\n");
-      setChat((prev) => [...prev, { role: "assistant" as const, content: coachReply }].slice(-12));
-      setLastToolNames([]);
-      setActions([]);
+      setChat((prev) => [...prev, { role: "assistant" as const, content: data.reply! }].slice(-12));
+      setLastToolNames((data.toolTrace ?? []).map((entry) => entry.name));
+      setActions(data.actions ?? []);
     } catch {
       setChat((prev) => prev.slice(0, -1));
       setError("Network error.");
@@ -170,14 +160,14 @@ export function CoachClient() {
         </Link>
         <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(190,255,71,.35)] bg-[rgba(190,255,71,.15)] px-2 py-1 text-[10px] font-semibold text-[#B8E86A]">
           <Sparkles size={11} />
-          AI Coach V3
+          Gemini Coach
         </span>
       </div>
 
       <div className="premium-card rounded-2xl p-4">
         <h1 className="num text-xl font-bold text-[var(--white)]">AI Coach</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Answers use your goals and recent logs from this app. First question is free, then premium.
+          Answers use your goals and live app data via tool calling. Powered by Gemini Flash-Lite.
         </p>
 
         <div className="mt-3 flex flex-wrap gap-1.5">

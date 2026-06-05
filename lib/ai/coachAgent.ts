@@ -1,3 +1,8 @@
+import { AI_CONFIG } from "@/lib/ai/config";
+import { estimateLlmCostUsd } from "@/lib/ai/cost";
+import { LlmHttpError } from "@/lib/ai/anthropic";
+import { aiLog } from "@/lib/ai/log";
+
 export type CoachHistoryTurn = { role: "user" | "assistant"; content: string };
 
 export type CoachFetchedData = {
@@ -30,8 +35,6 @@ export type CoachToolTraceEntry = {
   result: unknown;
 };
 
-const GEMINI_MODEL = "gemini-1.5-flash";
-
 type GeminiPart = {
   text?: string;
   functionCall?: { name: string; args?: Record<string, unknown> };
@@ -41,12 +44,22 @@ type GeminiPart = {
 type GeminiContent = { role: string; parts: GeminiPart[] };
 
 type GenerateContentResponse = {
+  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
   candidates?: Array<{
     content?: GeminiContent;
     finishReason?: string;
   }>;
   error?: { message?: string };
 };
+
+function geminiModelCandidates(): string[] {
+  const configured = process.env.GEMINI_MODEL?.trim();
+  return [
+    ...(configured ? [configured] : []),
+    AI_CONFIG.gemini.defaultModel,
+    ...AI_CONFIG.gemini.fallbackModels,
+  ].filter((model, index, arr) => model.length > 0 && arr.indexOf(model) === index);
+}
 
 function extractJsonObject(text: string) {
   const start = text.indexOf("{");
@@ -59,27 +72,69 @@ function extractJsonObject(text: string) {
   }
 }
 
-async function geminiGenerate(apiKey: string, body: Record<string, unknown>) {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
-  );
-  const text = await res.text();
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error(`Gemini non-JSON (${res.status}): ${text.slice(0, 240)}`);
+async function geminiGenerate(
+  apiKey: string,
+  body: Record<string, unknown>,
+  opts: { purpose: string; userId?: string },
+): Promise<GenerateContentResponse> {
+  let lastError = "Gemini request failed";
+  let lastStatus = 502;
+
+  for (const model of geminiModelCandidates()) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+
+    const text = await res.text();
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      lastError = `Gemini non-JSON (${res.status})`;
+      lastStatus = res.status >= 400 ? res.status : 502;
+      continue;
+    }
+
+    const data = parsed as GenerateContentResponse & { error?: { message?: string } };
+    if (!res.ok) {
+      lastError = data.error?.message ?? `Gemini request failed (${res.status})`;
+      lastStatus = res.status;
+      aiLog("gemini_error", {
+        purpose: opts.purpose,
+        userId: opts.userId,
+        model,
+        status: res.status,
+        raw: text.slice(0, 300),
+      });
+      if (res.status === 404 || res.status === 429 || res.status >= 500) {
+        continue;
+      }
+      throw new LlmHttpError(lastError, res.status);
+    }
+
+    aiLog("llm_call", {
+      provider: "gemini",
+      model,
+      purpose: opts.purpose,
+      userId: opts.userId,
+      input_tokens: data.usageMetadata?.promptTokenCount ?? null,
+      output_tokens: data.usageMetadata?.candidatesTokenCount ?? null,
+      cost_usd: estimateLlmCostUsd(
+        model,
+        data.usageMetadata?.promptTokenCount,
+        data.usageMetadata?.candidatesTokenCount,
+      ),
+    });
+
+    return data;
   }
-  const data = parsed as GenerateContentResponse & { error?: { message?: string } };
-  if (!res.ok) {
-    throw new Error(data.error?.message ?? text.slice(0, 300));
-  }
-  return data;
+
+  throw new LlmHttpError(lastError, lastStatus);
 }
 
 function toolDeclarations() {
@@ -158,9 +213,9 @@ function runTool(
       const maxEntries =
         typeof maxRaw === "number" && Number.isFinite(maxRaw) ? Math.min(10, Math.max(1, Math.floor(maxRaw))) : 4;
       return {
-        entries: data.weight.recent.slice(0, maxEntries).map((e) => ({
-          date: e.date,
-          weightKg: e.weightKg,
+        entries: data.weight.recent.slice(0, maxEntries).map((entry) => ({
+          date: entry.date,
+          weightKg: entry.weightKg,
         })),
         latestKg: data.weight.latestKg,
         deltaLastTwoKg: data.weight.deltaKg,
@@ -191,12 +246,13 @@ export async function runCoachWithFunctionCalling(
   message: string,
   history: CoachHistoryTurn[],
   data: CoachFetchedData,
+  userId?: string,
 ): Promise<{ reply: string; actions: { label: string; href: string }[]; toolTrace: CoachToolTraceEntry[] }> {
   const toolTrace: CoachToolTraceEntry[] = [];
 
   const historyLines = history
     .slice(-8)
-    .map((h) => `${h.role === "user" ? "User" : "Coach"}: ${h.content}`)
+    .map((turn) => `${turn.role === "user" ? "User" : "Coach"}: ${turn.content}`)
     .join("\n");
 
   const contents: GeminiContent[] = [];
@@ -225,24 +281,28 @@ export async function runCoachWithFunctionCalling(
   let rounds = 0;
   while (rounds < MAX_TOOL_ROUNDS) {
     rounds++;
-    const lastData = await geminiGenerate(apiKey, {
-      systemInstruction: { parts: [{ text: TOOL_SYSTEM }] },
-      contents,
-      tools: [{ functionDeclarations: toolDeclarations() }],
-      toolConfig: {
-        functionCallingConfig: {
-          mode: "AUTO",
+    const lastData = await geminiGenerate(
+      apiKey,
+      {
+        systemInstruction: { parts: [{ text: TOOL_SYSTEM }] },
+        contents,
+        tools: [{ functionDeclarations: toolDeclarations() }],
+        toolConfig: {
+          functionCallingConfig: {
+            mode: "AUTO",
+          },
+        },
+        generationConfig: {
+          temperature: 0.2,
+          topP: 0.9,
+          maxOutputTokens: 512,
         },
       },
-      generationConfig: {
-        temperature: 0.2,
-        topP: 0.9,
-        maxOutputTokens: 512,
-      },
-    });
+      { purpose: "coach_v3_internal", userId },
+    );
 
     const parts = lastData.candidates?.[0]?.content?.parts ?? [];
-    const callParts = parts.filter((p) => p.functionCall);
+    const callParts = parts.filter((part) => part.functionCall);
     if (callParts.length === 0) {
       break;
     }
@@ -252,8 +312,8 @@ export async function runCoachWithFunctionCalling(
       parts: callParts,
     });
 
-    const responseParts: GeminiPart[] = callParts.map((p) => {
-      const fc = p.functionCall!;
+    const responseParts: GeminiPart[] = callParts.map((part) => {
+      const fc = part.functionCall!;
       const args = (fc.args ?? {}) as Record<string, unknown>;
       const result = runTool(fc.name, args, data);
       toolTrace.push({ name: fc.name, args, result });
@@ -288,24 +348,28 @@ export async function runCoachWithFunctionCalling(
     `User message:\n${message}`,
   ].join("\n");
 
-  const syn = await geminiGenerate(apiKey, {
-    systemInstruction: {
-      parts: [{ text: "You are a supportive fitness coach in the Healthify app. Output valid JSON only." }],
-    },
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: synthesisUserPrompt }],
+  const syn = await geminiGenerate(
+    apiKey,
+    {
+      systemInstruction: {
+        parts: [{ text: "You are a supportive fitness coach in the Healthify app. Output valid JSON only." }],
       },
-    ],
-    generationConfig: {
-      temperature: 0.35,
-      topP: 0.9,
-      maxOutputTokens: 600,
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: synthesisUserPrompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.35,
+        topP: 0.9,
+        maxOutputTokens: 600,
+      },
     },
-  });
+    { purpose: "coach_v3", userId },
+  );
 
-  const textOut = syn.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("\n") ?? "";
+  const textOut = syn.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("\n") ?? "";
   const parsed = extractJsonObject(textOut);
   if (!parsed || typeof parsed !== "object") {
     throw new Error(`Synthesis JSON parse failed: ${textOut.slice(0, 400)}`);
@@ -327,7 +391,7 @@ export async function runCoachWithFunctionCalling(
       const label = typeof o.label === "string" ? o.label.trim().slice(0, 48) : "";
       const href = typeof o.href === "string" ? o.href.trim() : "";
       if (!label || !href.startsWith("/")) continue;
-      const ok = ALLOWED.some((p) => href === p || href.startsWith(`${p}?`) || href.startsWith(`${p}/`));
+      const ok = ALLOWED.some((path) => href === path || href.startsWith(`${path}?`) || href.startsWith(`${path}/`));
       if (ok) actions.push({ label, href });
     }
   }

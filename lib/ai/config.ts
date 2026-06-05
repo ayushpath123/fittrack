@@ -1,8 +1,8 @@
 export const AI_CONFIG = {
   providerOrder: ["anthropic", "gemini"] as const,
   gemini: {
-    defaultModel: "gemini-2.0-flash",
-    fallbackModels: ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
+    defaultModel: "gemini-2.5-flash-lite",
+    fallbackModels: ["gemini-2.5-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"],
   },
   anthropic: {
     defaultModel: "claude-sonnet-4-20250514",
