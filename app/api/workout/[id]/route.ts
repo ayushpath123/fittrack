@@ -5,7 +5,12 @@ import { deleteWorkoutLog, updateWorkoutLog } from "@/lib/domain/workout-logs";
 import { workoutLogPatchSchema } from "@/lib/validators";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const userId = await requireUserIdFromRequest(req);
+  let userId: string;
+  try {
+    userId = await requireUserIdFromRequest(req);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const { id } = await params;
   const parsed = workoutLogPatchSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
@@ -18,7 +23,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const userId = await requireUserIdFromRequest(req);
+  let userId: string;
+  try {
+    userId = await requireUserIdFromRequest(req);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const { id } = await params;
   const deleted = await deleteWorkoutLog(userId, id);
   if (!deleted) return NextResponse.json({ error: "Workout not found" }, { status: 404 });

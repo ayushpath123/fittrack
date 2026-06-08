@@ -7,7 +7,9 @@ import { HealthInsights } from "@/components/dashboard/HealthInsights";
 import { HeroSection } from "@/components/dashboard/HeroSection";
 import { MacrosSummary } from "@/components/dashboard/MacrosSummary";
 import { WeeklyGoalsStrip } from "@/components/dashboard/WeeklyGoalsStrip";
+import { MealCaloriesChart } from "@/components/meals/MealCaloriesChart";
 import { WeightProgressCard } from "@/components/dashboard/WeightProgressCard";
+import { DashboardWorkoutSection } from "@/components/workout-templates/DashboardWorkoutSection";
 import { WORKOUT_SYNC_EVENT, useWorkoutStore } from "@/store/workoutStore";
 import type { DashboardPayload } from "@/types/dashboard";
 
@@ -45,6 +47,8 @@ export function DashboardHomeClient({ payload }: { payload: DashboardPayload }) 
 
         <MacrosSummary totals={payload.totals} targets={payload.targets} />
 
+        <MealCaloriesChart data={payload.caloriesConsumedLast7Days} />
+
         <WeightProgressCard logs={payload.weightLogs} />
 
         <WeeklyGoalsStrip
@@ -53,6 +57,8 @@ export function DashboardHomeClient({ payload }: { payload: DashboardPayload }) 
           waterMl={payload.initialWaterMl}
           waterGoalMl={payload.waterGoalMl}
         />
+
+        <DashboardWorkoutSection templates={payload.workoutTemplates} />
 
         <HealthInsights insights={payload.insights} limit={1} />
 

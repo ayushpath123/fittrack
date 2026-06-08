@@ -2,7 +2,7 @@
  * Server orchestration for FitTrack gamification: Prisma access, summary assembly,
  * and transactional helpers used by App Router API routes.
  */
-import type { GamificationAction, Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, type GamificationAction, type PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { syncLeaderboardAndGetStandings } from "@/lib/leaderboard";
 import {
@@ -56,6 +56,29 @@ function isSameUtcDate(a: Date | null | undefined, dayKey: string): boolean {
 }
 
 type Tx = Prisma.TransactionClient;
+/** Prisma client or interactive transaction — shared by gamification helpers. */
+type GamificationDb = Tx | PrismaClient;
+
+const GAMIFICATION_TX_OPTIONS = { maxWait: 15_000, timeout: 45_000 } as const;
+const GAMIFICATION_TX_RETRY_CODES = new Set(["P2028", "P2034"]);
+
+async function runGamificationTransaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await prisma.$transaction(fn, GAMIFICATION_TX_OPTIONS);
+    } catch (error) {
+      lastError = error;
+      const retryable =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        GAMIFICATION_TX_RETRY_CODES.has(error.code) &&
+        attempt < 3;
+      if (!retryable) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+    }
+  }
+  throw lastError;
+}
 
 function parseQuestPayouts(raw: unknown): Record<string, Record<string, boolean>> {
   if (!raw || typeof raw !== "object") return {};
@@ -74,8 +97,8 @@ function parseQuestPayouts(raw: unknown): Record<string, Record<string, boolean>
 /**
  * Ensures a {@link UserGamification} row exists for the user (idempotent upsert).
  */
-export async function ensureUserGamification(tx: Tx, userId: string): Promise<void> {
-  await tx.userGamification.upsert({
+export async function ensureUserGamification(db: GamificationDb, userId: string): Promise<void> {
+  await db.userGamification.upsert({
     where: { userId },
     create: { userId },
     update: {},
@@ -87,7 +110,7 @@ export async function ensureUserGamification(tx: Tx, userId: string): Promise<vo
  * workout, and hydration tables.
  */
 export async function reconcileDailyActivityForUtcDate(
-  tx: Tx,
+  db: GamificationDb,
   userId: string,
   dateKey: string,
 ): Promise<{ mealsLogged: boolean; workoutLogged: boolean; hydrationLogged: boolean }> {
@@ -95,10 +118,10 @@ export async function reconcileDailyActivityForUtcDate(
   const dayEnd = new Date(dayStart);
   dayEnd.setUTCHours(23, 59, 59, 999);
 
-  const goals = await tx.goalSetting.findUnique({ where: { userId }, select: { waterTargetMl: true } });
+  const goals = await db.goalSetting.findUnique({ where: { userId }, select: { waterTargetMl: true } });
   const waterTarget = goals?.waterTargetMl ?? 2000;
 
-  const meals = await tx.mealEntry.findMany({
+  const meals = await db.mealEntry.findMany({
     where: { userId, date: { gte: dayStart, lte: dayEnd } },
     select: { mealType: true },
   });
@@ -108,19 +131,19 @@ export async function reconcileDailyActivityForUtcDate(
   );
   const mealsLogged = types.size >= 3;
 
-  const workoutN = await tx.workoutLog.count({
+  const workoutN = await db.workoutLog.count({
     where: { userId, workoutDate: { gte: dayStart, lte: dayEnd } },
   });
   const workoutLogged = workoutN > 0;
 
-  const hydRows = await tx.hydrationLog.findMany({
+  const hydRows = await db.hydrationLog.findMany({
     where: { userId, date: { gte: dayStart, lte: dayEnd } },
     select: { totalMl: true },
   });
   const totalMl = hydRows.reduce((s, r) => s + (r.totalMl ?? 0), 0);
   const hydrationLogged = totalMl >= waterTarget;
 
-  await tx.dailyActivityLog.upsert({
+  await db.dailyActivityLog.upsert({
     where: { userId_date: { userId, date: dayStart } },
     create: {
       userId,
@@ -138,11 +161,11 @@ export async function reconcileDailyActivityForUtcDate(
 /**
  * Recomputes ISO-week boss progress from {@link DailyActivityLog} and upserts {@link WeeklyBossLog}.
  */
-export async function syncWeeklyBossProgress(tx: Tx, userId: string, weekKey: string): Promise<void> {
+export async function syncWeeklyBossProgress(db: GamificationDb, userId: string, weekKey: string): Promise<void> {
   const keys = utcDatesInIsoWeek(weekKey);
   if (!keys.length) return;
   const starts = keys.map((k) => parseUtcDateKey(k));
-  const logs = await tx.dailyActivityLog.findMany({
+  const logs = await db.dailyActivityLog.findMany({
     where: { userId, date: { in: starts } },
   });
   const map = dailyLogMap(logs);
@@ -153,7 +176,7 @@ export async function syncWeeklyBossProgress(tx: Tx, userId: string, weekKey: st
   }
   const target = 5;
   const defeated = progress >= target;
-  await tx.weeklyBossLog.upsert({
+  await db.weeklyBossLog.upsert({
     where: { userId_weekKey: { userId, weekKey } },
     create: { userId, weekKey, progress, target, defeated, lootClaimed: false },
     update: { progress, target, defeated },
@@ -164,18 +187,18 @@ export async function syncWeeklyBossProgress(tx: Tx, userId: string, weekKey: st
  * Recomputes streak columns from logs, persists drift correction, optionally writes `STREAK_SYNC` audit.
  */
 export async function persistStreaksFromLogs(
-  tx: Tx,
+  db: GamificationDb,
   userId: string,
   meta: RequestAuditMeta,
   options?: { writeAudit: boolean },
 ): Promise<ReturnType<typeof computeStreaksFromDailyLogs>> {
-  const logs = await tx.dailyActivityLog.findMany({
+  const logs = await db.dailyActivityLog.findMany({
     where: { userId },
     orderBy: { date: "asc" },
     take: 4000,
   });
   const s = computeStreaksFromDailyLogs(logs, new Date());
-  const ug = await tx.userGamification.findUnique({ where: { userId } });
+  const ug = await db.userGamification.findUnique({ where: { userId } });
   if (!ug) return s;
 
   const drift =
@@ -185,7 +208,7 @@ export async function persistStreaksFromLogs(
     ug.hydrationStreak !== s.hydrationStreak ||
     ug.bestGlobalStreak !== s.bestGlobalStreak;
 
-  await tx.userGamification.update({
+  await db.userGamification.update({
     where: { userId },
     data: {
       globalStreak: s.globalStreak,
@@ -197,7 +220,7 @@ export async function persistStreaksFromLogs(
   });
 
   if (drift && options?.writeAudit) {
-    await tx.gamificationAuditLog.create({
+    await db.gamificationAuditLog.create({
       data: {
         userId,
         action: "STREAK_SYNC",
@@ -308,6 +331,70 @@ async function buildSummaryPayload(
 /**
  * Builds the full {@link GamificationSummary} for API responses (read path + after mutations).
  */
+async function assembleGamificationSummary(
+  db: GamificationDb,
+  userId: string,
+  meta: RequestAuditMeta,
+  options?: { auditStreakSync?: boolean },
+): Promise<{ summary: GamificationSummary; totalXp: number }> {
+  await ensureUserGamification(db, userId);
+  const ugLock = await db.userGamification.findUniqueOrThrow({ where: { userId } });
+  if (ugLock.lockedAt) {
+    throw new GamificationHttpError(403, "Forbidden");
+  }
+
+  const todayKey = utcDateKey(new Date());
+  await reconcileDailyActivityForUtcDate(db, userId, todayKey);
+
+  const weekKey = isoWeekKeyUtc(new Date());
+  await syncWeeklyBossProgress(db, userId, weekKey);
+
+  const prevGlobalStreak = ugLock.globalStreak;
+  const streaks = await persistStreaksFromLogs(db, userId, meta, {
+    writeAudit: !!options?.auditStreakSync,
+  });
+
+  const crossedStreakMilestone =
+    streaks.globalStreak > 0 &&
+    streaks.globalStreak % STREAK_XP_BONUS_EVERY_DAYS === 0 &&
+    Math.floor(streaks.globalStreak / STREAK_XP_BONUS_EVERY_DAYS) >
+      Math.floor(prevGlobalStreak / STREAK_XP_BONUS_EVERY_DAYS);
+  if (crossedStreakMilestone) {
+    await awardXp(db, userId, STREAK_XP_BONUS_AMOUNT, `streak_milestone_${streaks.globalStreak}`, meta);
+  }
+
+  const dayRow = await db.dailyActivityLog.findUnique({
+    where: { userId_date: { userId, date: parseUtcDateKey(todayKey) } },
+  });
+  const quests = buildServerDailyQuests({
+    mealsLogged: !!dayRow?.mealsLogged,
+    workoutLogged: !!dayRow?.workoutLogged,
+    hydrationLogged: !!dayRow?.hydrationLogged,
+  });
+  await grantQuestXpIfNeeded(db, userId, todayKey, quests, meta);
+
+  const ug = await db.userGamification.findUniqueOrThrow({ where: { userId } });
+  const lvl = computeLevelAndRank(ug.totalXp);
+  if (ug.level !== lvl.level || ug.rank !== lvl.rank) {
+    await db.userGamification.update({
+      where: { userId },
+      data: { level: lvl.level, rank: lvl.rank },
+    });
+  }
+
+  const weekRow = await db.weeklyBossLog.findUnique({
+    where: { userId_weekKey: { userId, weekKey } },
+  });
+
+  const refreshed = await db.userGamification.findUniqueOrThrow({ where: { userId } });
+  const summary = await buildSummaryPayload(userId, refreshed, streaks, weekRow, quests, null);
+  return { summary, totalXp: refreshed.totalXp };
+}
+
+/**
+ * Builds the full {@link GamificationSummary} for API responses (read path + after mutations).
+ * Uses sequential queries (no interactive transaction) to stay reliable on pooled/serverless Postgres.
+ */
 export async function fetchGamificationSummaryForUser(
   userId: string,
   opts?: { leaderboard?: boolean; auditStreakSync?: boolean; reqMeta?: RequestAuditMeta },
@@ -315,65 +402,8 @@ export async function fetchGamificationSummaryForUser(
   const meta = opts?.reqMeta ?? { ipAddress: null, userAgent: null };
   const leaderboardEnabled = opts?.leaderboard !== false;
 
-  const { summary, totalXp } = await prisma.$transaction(async (tx) => {
-    await ensureUserGamification(tx, userId);
-    const ugLock = await tx.userGamification.findUniqueOrThrow({ where: { userId } });
-    if (ugLock.lockedAt) {
-      throw new GamificationHttpError(403, "Forbidden");
-    }
-    const todayKey = utcDateKey(new Date());
-    await reconcileDailyActivityForUtcDate(tx, userId, todayKey);
-
-    const weekKey = isoWeekKeyUtc(new Date());
-    await syncWeeklyBossProgress(tx, userId, weekKey);
-
-    const prevGlobalStreak = ugLock.globalStreak;
-    const streaks = await persistStreaksFromLogs(tx, userId, meta, {
-      writeAudit: !!opts?.auditStreakSync,
-    });
-
-    const crossedStreakMilestone =
-      streaks.globalStreak > 0 &&
-      streaks.globalStreak % STREAK_XP_BONUS_EVERY_DAYS === 0 &&
-      Math.floor(streaks.globalStreak / STREAK_XP_BONUS_EVERY_DAYS) >
-        Math.floor(prevGlobalStreak / STREAK_XP_BONUS_EVERY_DAYS);
-    if (crossedStreakMilestone) {
-      await awardXp(
-        tx,
-        userId,
-        STREAK_XP_BONUS_AMOUNT,
-        `streak_milestone_${streaks.globalStreak}`,
-        meta,
-      );
-    }
-
-    const dayRow = await tx.dailyActivityLog.findUnique({
-      where: { userId_date: { userId, date: parseUtcDateKey(todayKey) } },
-    });
-    const quests = buildServerDailyQuests({
-      mealsLogged: !!dayRow?.mealsLogged,
-      workoutLogged: !!dayRow?.workoutLogged,
-      hydrationLogged: !!dayRow?.hydrationLogged,
-    });
-    await grantQuestXpIfNeeded(tx, userId, todayKey, quests, meta);
-
-    const ug = await tx.userGamification.findUniqueOrThrow({ where: { userId } });
-    const lvl = computeLevelAndRank(ug.totalXp);
-    if (ug.level !== lvl.level || ug.rank !== lvl.rank) {
-      await tx.userGamification.update({
-        where: { userId },
-        data: { level: lvl.level, rank: lvl.rank },
-      });
-    }
-
-    const weekRow = await tx.weeklyBossLog.findUnique({
-      where: { userId_weekKey: { userId, weekKey } },
-    });
-
-    const refreshed = await tx.userGamification.findUniqueOrThrow({ where: { userId } });
-
-    const summaryInner = await buildSummaryPayload(userId, refreshed, streaks, weekRow, quests, null);
-    return { summary: summaryInner, totalXp: refreshed.totalXp };
+  const { summary, totalXp } = await assembleGamificationSummary(prisma, userId, meta, {
+    auditStreakSync: opts?.auditStreakSync,
   });
 
   let leaderboard: GamificationSummary["leaderboard"] = null;
@@ -387,21 +417,21 @@ export async function fetchGamificationSummaryForUser(
  * Adds XP, recomputes level/rank, and appends an `XP_AWARD` audit row.
  */
 export async function awardXp(
-  tx: Tx,
+  db: GamificationDb,
   userId: string,
   amount: number,
   reason: string,
   meta: RequestAuditMeta,
 ): Promise<{ leveledUp: boolean; beforeLevel: number; afterLevel: number; totalXp: number }> {
-  const ug = await tx.userGamification.findUniqueOrThrow({ where: { userId } });
+  const ug = await db.userGamification.findUniqueOrThrow({ where: { userId } });
   const beforeLevel = ug.level;
   const totalXp = ug.totalXp + amount;
   const { level, rank } = computeLevelAndRank(totalXp);
-  await tx.userGamification.update({
+  await db.userGamification.update({
     where: { userId },
     data: { totalXp, level, rank },
   });
-  await tx.gamificationAuditLog.create({
+  await db.gamificationAuditLog.create({
     data: {
       userId,
       action: "XP_AWARD",
@@ -417,13 +447,13 @@ export async function awardXp(
 }
 
 async function grantQuestXpIfNeeded(
-  tx: Tx,
+  db: GamificationDb,
   userId: string,
   dayKey: string,
   quests: Quest[],
   meta: RequestAuditMeta,
 ): Promise<void> {
-  const ug = await tx.userGamification.findUniqueOrThrow({ where: { userId } });
+  const ug = await db.userGamification.findUniqueOrThrow({ where: { userId } });
   const base = parseQuestPayouts(ug.questPayoutsByDay);
   const next: Record<string, Record<string, boolean>> = { ...base, [dayKey]: { ...(base[dayKey] ?? {}) } };
   const dayPaid = next[dayKey]!;
@@ -433,11 +463,11 @@ async function grantQuestXpIfNeeded(
     if (dayPaid[q.id]) continue;
     const def = DAILY_QUEST_DEFS.find((d) => d.id === q.id);
     if (!def) continue;
-    await awardXp(tx, userId, def.rewardXp, `quest:${def.id}`, meta);
+    await awardXp(db, userId, def.rewardXp, `quest:${def.id}`, meta);
     dayPaid[q.id] = true;
   }
 
-  await tx.userGamification.update({
+  await db.userGamification.update({
     where: { userId },
     data: { questPayoutsByDay: next as Prisma.InputJsonValue },
   });
@@ -454,7 +484,7 @@ export async function applyActivityLogMutation(args: {
 }): Promise<GamificationSummary> {
   const { userId, dateKey, type, meta } = args;
 
-  await prisma.$transaction(async (tx) => {
+  await runGamificationTransaction(async (tx) => {
     await ensureUserGamification(tx, userId);
     const ug0 = await tx.userGamification.findUnique({ where: { userId } });
     if (ug0?.lockedAt) throw new GamificationHttpError(403, "Forbidden");
@@ -586,7 +616,7 @@ export async function claimDailyChestMutation(
   const rolling24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const todayKey = utcDateKey(new Date());
 
-  await prisma.$transaction(async (tx) => {
+  await runGamificationTransaction(async (tx) => {
     await ensureUserGamification(tx, userId);
     const ug = await tx.userGamification.findUniqueOrThrow({ where: { userId } });
     if (ug.lockedAt) throw new GamificationHttpError(403, "Forbidden");
@@ -654,7 +684,7 @@ export async function claimWeeklyBossMutation(
   const weekKey = isoWeekKeyUtc(new Date());
   const rolling24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  await prisma.$transaction(async (tx) => {
+  await runGamificationTransaction(async (tx) => {
     await ensureUserGamification(tx, userId);
     const ug = await tx.userGamification.findUniqueOrThrow({ where: { userId } });
     if (ug.lockedAt) throw new GamificationHttpError(403, "Forbidden");
@@ -736,7 +766,7 @@ export async function buyFreezeMutation(userId: string, meta: RequestAuditMeta):
   const rolling24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const dayStart = startOfUtcDay(new Date());
 
-  await prisma.$transaction(async (tx) => {
+  await runGamificationTransaction(async (tx) => {
     await ensureUserGamification(tx, userId);
     const ug = await tx.userGamification.findUniqueOrThrow({ where: { userId } });
     if (ug.lockedAt) throw new GamificationHttpError(403, "Forbidden");
@@ -797,7 +827,7 @@ export async function buyFreezeMutation(userId: string, meta: RequestAuditMeta):
 export async function buyXpBoostMutation(userId: string, meta: RequestAuditMeta): Promise<GamificationSummary> {
   const rolling24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  await prisma.$transaction(async (tx) => {
+  await runGamificationTransaction(async (tx) => {
     await ensureUserGamification(tx, userId);
     const ug = await tx.userGamification.findUniqueOrThrow({ where: { userId } });
     if (ug.lockedAt) throw new GamificationHttpError(403, "Forbidden");
@@ -853,7 +883,7 @@ export async function buyXpBoostMutation(userId: string, meta: RequestAuditMeta)
 export async function armFreezeMutation(userId: string, meta: RequestAuditMeta): Promise<GamificationSummary> {
   const rolling24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  await prisma.$transaction(async (tx) => {
+  await runGamificationTransaction(async (tx) => {
     await ensureUserGamification(tx, userId);
     const ug = await tx.userGamification.findUniqueOrThrow({ where: { userId } });
     if (ug.lockedAt) throw new GamificationHttpError(403, "Forbidden");
@@ -909,7 +939,7 @@ export async function armFreezeMutation(userId: string, meta: RequestAuditMeta):
 export async function useXpBoostMutation(userId: string, meta: RequestAuditMeta): Promise<GamificationSummary> {
   const rolling24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  await prisma.$transaction(async (tx) => {
+  await runGamificationTransaction(async (tx) => {
     await ensureUserGamification(tx, userId);
     const ug = await tx.userGamification.findUniqueOrThrow({ where: { userId } });
     if (ug.lockedAt) throw new GamificationHttpError(403, "Forbidden");

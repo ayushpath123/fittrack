@@ -111,6 +111,8 @@ model WorkoutLog {
   caloriesBurned Int
   workoutDate    DateTime
   notes          String?
+  templateId     String?
+  exercises      Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -124,16 +126,29 @@ model WorkoutTemplate {
   userId         String
   name           String
   workoutType    String
+  description    String?
+  icon           String?
+  colorTheme     String?
+  intensityLevel String?
+  category       String    @default("strength")
   duration       Int
   caloriesBurned Int
+  exercises      Json      @default("[]")
+  cardioType     String?
+  cardioDistance Float?
+  cardioPace     String?
+  heartRate      Int?
+  builtinKey     String?
   useCount       Int       @default(0)
   lastUsedAt     DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, builtinKey])
   @@index([userId, useCount])
   @@index([userId, createdAt])
+  @@index([userId, category])
 }
 
 model ExerciseEntry {

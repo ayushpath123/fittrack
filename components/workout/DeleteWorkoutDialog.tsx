@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/Button";
 
 type DeleteWorkoutDialogProps = {
@@ -10,11 +12,28 @@ type DeleteWorkoutDialogProps = {
 };
 
 export function DeleteWorkoutDialog({ open, isDeleting, onCancel, onConfirm }: DeleteWorkoutDialogProps) {
-  if (!open) return null;
+  const [mounted, setMounted] = useState(false);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center" onClick={onCancel}>
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  if (!open || !mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-end justify-center p-4 sm:items-center" onClick={onCancel}>
       <div
+        role="dialog"
+        aria-modal="true"
         className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#1C1C2C] p-5"
         onClick={(e) => e.stopPropagation()}
       >
@@ -34,6 +53,7 @@ export function DeleteWorkoutDialog({ open, isDeleting, onCancel, onConfirm }: D
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

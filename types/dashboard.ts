@@ -1,8 +1,13 @@
 import type { ActivityFeedItem } from "@/lib/activity-timeline";
 import type { MacroSnapshot } from "@/lib/meal-templates";
-import type { MealTemplate } from "@/types/meal-template";
 import type { WeightLogType } from "@/types";
-import type { WorkoutDaySummary, WorkoutLogType } from "@/types/workout";
+import type { MealCaloriesPoint } from "@/lib/meal-chart-data";
+import type {
+  WorkoutDaySummary,
+  WorkoutLogType,
+  WorkoutSuggestedTemplate,
+  WorkoutTemplateType,
+} from "@/types/workout";
 
 export type WorkoutPlanStatus = "not_started" | "in_progress" | "completed";
 
@@ -62,7 +67,8 @@ export type DashboardPayload = {
   timeline: ActivityFeedItem[];
   insights: HealthInsight[];
   personalRecords: PersonalRecord[];
-  mealTemplates: MealTemplate[];
-  initialMealSlot: string;
+  workoutTemplates: WorkoutTemplateType[];
+  workoutSuggestion: WorkoutSuggestedTemplate | null;
+  caloriesConsumedLast7Days: MealCaloriesPoint[];
   showWelcome?: boolean;
 };

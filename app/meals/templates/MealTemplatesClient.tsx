@@ -178,7 +178,7 @@ export function MealTemplatesClient({ initialTemplates }: MealTemplatesClientPro
       ) : filtered.length === 0 ? (
         <p className="py-8 text-center text-xs text-[var(--muted)]">No templates match your search.</p>
       ) : (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-2 sm:grid-cols-2">
           {filtered.map((template) => (
             <MealTemplateCard
               key={template.id}

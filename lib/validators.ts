@@ -104,11 +104,51 @@ export const workoutLogPatchSchema = z
     { message: "No fields to update" },
   );
 
+export const templateExerciseSchema = z.object({
+  exerciseName: z.string().trim().min(1),
+  sets: z.number().int().positive(),
+  reps: z.string().trim().min(1),
+  weight: z.number().nonnegative().nullable(),
+  rest: z.number().int().nonnegative(),
+});
+
+export const cardioTypeSchema = z.enum([
+  "walking",
+  "running",
+  "cycling",
+  "treadmill",
+  "stair_climber",
+  "elliptical",
+  "rowing",
+]);
+
 export const workoutTemplatePayloadSchema = z.object({
   name: z.string().trim().min(1, "Template name is required"),
   workoutType: workoutTypeSchema,
+  description: z.string().trim().optional(),
+  icon: z.string().trim().optional(),
+  colorTheme: z.string().trim().optional(),
+  intensityLevel: z.enum(["low", "medium", "high"]).optional(),
+  category: z.enum(["strength", "cardio"]).optional(),
   duration: z.number().int().positive(),
   caloriesBurned: z.number().int().nonnegative(),
+  exercises: z.array(templateExerciseSchema).optional(),
+  cardioType: cardioTypeSchema.optional(),
+  cardioDistance: z.number().nonnegative().optional(),
+  cardioPace: z.string().trim().optional(),
+  heartRate: z.number().int().positive().optional(),
+});
+
+export const workoutTemplateLogSchema = z.object({
+  workoutDate: z.string().min(1).optional(),
+  duration: z.number().int().positive().optional(),
+  caloriesBurned: z.number().int().nonnegative().optional(),
+  notes: z.string().trim().optional(),
+});
+
+export const workoutTemplateBatchLogSchema = z.object({
+  templateIds: z.array(z.string().min(1)).min(1).max(8),
+  workoutDate: z.string().min(1).optional(),
 });
 
 const weightKgSchema = z

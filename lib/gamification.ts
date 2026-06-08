@@ -365,6 +365,8 @@ export function badgesFromSnapshot(args: {
   hydrationStreak: number;
   level: number;
   coins: number;
+  totalWorkoutsLogged?: number;
+  totalCaloriesBurned?: number;
 }): string[] {
   const badges: string[] = [];
   if (args.globalStreak >= 3) badges.push("3-day momentum");
@@ -372,8 +374,13 @@ export function badgesFromSnapshot(args: {
   if (args.bestGlobalStreak >= 14) badges.push("Unbreakable");
   if (args.mealStreak >= 5) badges.push("Meal consistency");
   if (args.workoutStreak >= 5) badges.push("Training rhythm");
+  if (args.workoutStreak >= 7) badges.push("7-day streak");
+  if (args.workoutStreak >= 30) badges.push("30-day streak");
   if (args.hydrationStreak >= 5) badges.push("Hydration hero");
   if (args.level >= 20) badges.push("Rank climber");
   if (args.coins >= 500) badges.push("Coin hoarder");
-  return badges.slice(0, 6);
+  if ((args.totalWorkoutsLogged ?? 0) >= 1) badges.push("First workout");
+  if ((args.totalWorkoutsLogged ?? 0) >= 100) badges.push("100 workouts");
+  if ((args.totalCaloriesBurned ?? 0) >= 10_000) badges.push("10k calories burned");
+  return badges.slice(0, 8);
 }

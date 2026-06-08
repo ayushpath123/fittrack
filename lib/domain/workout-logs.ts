@@ -1,8 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import { endOfDay, getDaysAgo, startOfDay } from "@/lib/date";
-import type { WorkoutDaySummary, WorkoutLogType, WorkoutTemplateType, WorkoutTypeKind } from "@/types/workout";
+import { toWorkoutTemplate } from "@/lib/workout-template-service";
+import type {
+  TemplateExercise,
+  WorkoutDaySummary,
+  WorkoutLogType,
+  WorkoutTemplateType,
+  WorkoutTypeKind,
+} from "@/types/workout";
 
-function serializeLog(row: {
+function parseExercises(raw: unknown): TemplateExercise[] | undefined {
+  if (!Array.isArray(raw) || !raw.length) return undefined;
+  return raw as TemplateExercise[];
+}
+
+export function serializeWorkoutLog(row: {
   id: string;
   userId: string;
   workoutName: string;
@@ -11,6 +23,8 @@ function serializeLog(row: {
   caloriesBurned: number;
   workoutDate: Date;
   notes: string | null;
+  templateId?: string | null;
+  exercises?: unknown;
   createdAt: Date;
   updatedAt?: Date;
 }): WorkoutLogType {
@@ -23,28 +37,10 @@ function serializeLog(row: {
     caloriesBurned: row.caloriesBurned,
     workoutDate: row.workoutDate.toISOString(),
     notes: row.notes,
+    templateId: row.templateId ?? null,
+    exercises: parseExercises(row.exercises),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt?.toISOString(),
-  };
-}
-
-function serializeTemplate(row: {
-  id: string;
-  name: string;
-  workoutType: string;
-  duration: number;
-  caloriesBurned: number;
-  useCount: number;
-  lastUsedAt: Date | null;
-}): WorkoutTemplateType {
-  return {
-    id: row.id,
-    name: row.name,
-    workoutType: row.workoutType as WorkoutTypeKind,
-    duration: row.duration,
-    caloriesBurned: row.caloriesBurned,
-    useCount: row.useCount,
-    lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
   };
 }
 
@@ -55,7 +51,7 @@ export async function listWorkoutLogsForDate(userId: string, dateStr?: string): 
     where: { userId, workoutDate: { gte: startOfDay(date), lte: endOfDay(date) } },
     orderBy: { createdAt: "desc" },
   });
-  return rows.map(serializeLog);
+  return rows.map(serializeWorkoutLog);
 }
 
 export async function listWorkoutLogHistory(userId: string, limit = 50): Promise<WorkoutLogType[]> {
@@ -64,7 +60,7 @@ export async function listWorkoutLogHistory(userId: string, limit = 50): Promise
     orderBy: { workoutDate: "desc" },
     take: limit,
   });
-  return rows.map(serializeLog);
+  return rows.map(serializeWorkoutLog);
 }
 
 export async function createWorkoutLog(params: {
@@ -76,8 +72,9 @@ export async function createWorkoutLog(params: {
   workoutDate?: string;
   notes?: string;
   templateId?: string;
+  exercises?: TemplateExercise[];
 }): Promise<WorkoutLogType> {
-  const { userId, workoutName, workoutType, duration, caloriesBurned, notes, templateId } = params;
+  const { userId, workoutName, workoutType, duration, caloriesBurned, notes, templateId, exercises } = params;
   const day = params.workoutDate ? new Date(params.workoutDate) : new Date();
   const now = new Date();
   const workoutDate = new Date(day);
@@ -92,6 +89,8 @@ export async function createWorkoutLog(params: {
       caloriesBurned,
       workoutDate,
       notes: notes?.trim() || null,
+      templateId: templateId ?? null,
+      exercises: exercises?.length ? (exercises as object) : undefined,
     },
   });
 
@@ -102,7 +101,7 @@ export async function createWorkoutLog(params: {
     });
   }
 
-  return serializeLog(row);
+  return serializeWorkoutLog(row);
 }
 
 export async function updateWorkoutLog(
@@ -128,7 +127,7 @@ export async function updateWorkoutLog(
   });
   if (!updated.count) return null;
   const row = await prisma.workoutLog.findFirst({ where: { id, userId } });
-  return row ? serializeLog(row) : null;
+  return row ? serializeWorkoutLog(row) : null;
 }
 
 export async function deleteWorkoutLog(userId: string, id: string): Promise<boolean> {
@@ -164,9 +163,10 @@ export async function listWorkoutTemplates(userId: string): Promise<WorkoutTempl
     where: { userId },
     orderBy: [{ useCount: "desc" }, { createdAt: "desc" }],
   });
-  return rows.map(serializeTemplate);
+  return rows.map(toWorkoutTemplate);
 }
 
+/** @deprecated Use createWorkoutTemplateForUser from workout-template-service */
 export async function createWorkoutTemplate(params: {
   userId: string;
   name: string;
@@ -181,7 +181,8 @@ export async function createWorkoutTemplate(params: {
       workoutType: params.workoutType,
       duration: params.duration,
       caloriesBurned: params.caloriesBurned,
+      exercises: [],
     },
   });
-  return serializeTemplate(row);
+  return toWorkoutTemplate(row);
 }

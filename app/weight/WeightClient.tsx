@@ -6,16 +6,16 @@ import toast from "react-hot-toast";
 import { EmptyState } from "@/components/EmptyState";
 import { SectionHeader } from "@/components/SectionHeader";
 import { WeightAnalyticsPanel } from "@/components/weight/WeightAnalyticsPanel";
-import { WeightHistoryList } from "@/components/weight/WeightHistoryList";
 import { WeightInsightsPanel } from "@/components/weight/WeightInsightsPanel";
 import { WeightLogModal } from "@/components/weight/WeightLogModal";
 import { WeightLineChart } from "@/components/WeightLineChart";
+import { WeightTrendMiniChart } from "@/components/weight/WeightTrendMiniChart";
 import {
   computeWeightAnalytics,
   trendStatusLabel,
   WEIGHT_UNIT,
 } from "@/lib/weight-analytics";
-import { deleteWeight, mergeWeightLog, removeWeightLog, replaceWeightLog, saveWeight, updateWeight } from "@/lib/weight-api";
+import { mergeWeightLog, saveWeight } from "@/lib/weight-api";
 import { WeightLogType } from "@/types";
 
 export function WeightClient({ initialLogs }: { initialLogs: WeightLogType[] }) {
@@ -47,18 +47,6 @@ export function WeightClient({ initialLogs }: { initialLogs: WeightLogType[] }) 
     toast.success("Weight logged successfully");
   }
 
-  async function handleUpdate(id: string, weight: number) {
-    const updated = await updateWeight(id, weight);
-    setLogs((prev) => replaceWeightLog(prev, updated));
-    toast.success("Weight updated");
-  }
-
-  async function handleDelete(id: string) {
-    await deleteWeight(id);
-    setLogs((prev) => removeWeightLog(prev, id));
-    toast.success("Entry deleted");
-  }
-
   return (
     <div className="space-y-4">
       <SectionHeader
@@ -75,6 +63,8 @@ export function WeightClient({ initialLogs }: { initialLogs: WeightLogType[] }) 
           </button>
         }
       />
+
+      {logs.length > 0 ? <WeightTrendMiniChart logs={logs} /> : null}
 
       {logs.length === 0 ? (
         <EmptyState
@@ -145,7 +135,6 @@ export function WeightClient({ initialLogs }: { initialLogs: WeightLogType[] }) 
 
           <WeightAnalyticsPanel logs={logs} />
           <WeightInsightsPanel logs={logs} />
-          <WeightHistoryList logs={logs} onUpdate={handleUpdate} onDelete={handleDelete} />
         </>
       )}
 

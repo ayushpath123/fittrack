@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   workoutLogCreate: vi.fn(),
   workoutTemplateCount: vi.fn(),
   workoutTemplateCreateMany: vi.fn(),
+  workoutTemplateUpsert: vi.fn(),
+  workoutTemplateUpdateMany: vi.fn(),
   weightFindMany: vi.fn(),
   weightUpsert: vi.fn(),
   goalsFindUnique: vi.fn(),
@@ -44,6 +46,8 @@ vi.mock("@/lib/prisma", () => ({
     workoutTemplate: {
       count: mocks.workoutTemplateCount,
       createMany: mocks.workoutTemplateCreateMany,
+      upsert: mocks.workoutTemplateUpsert,
+      updateMany: mocks.workoutTemplateUpdateMany,
     },
     weightLog: {
       findMany: mocks.weightFindMany,
@@ -86,6 +90,8 @@ describe("api contract tests", () => {
     });
     mocks.workoutTemplateCount.mockResolvedValue(1);
     mocks.workoutTemplateCreateMany.mockResolvedValue({ count: 0 });
+    mocks.workoutTemplateUpsert.mockResolvedValue({ id: "wtpl-1" });
+    mocks.workoutTemplateUpdateMany.mockResolvedValue({ count: 1 });
     mocks.weightFindMany.mockResolvedValue([{ id: "wt-1", weight: 75 }]);
     mocks.weightUpsert.mockResolvedValue({ id: "wt-2", weight: 74.5, waistCm: 82 });
     mocks.goalsFindUnique.mockResolvedValue({ calorieTarget: 2000, proteinTarget: 120 });

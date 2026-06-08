@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUserIdFromRequest } from "@/lib/auth";
-import { createWorkoutTemplate, listWorkoutTemplates } from "@/lib/domain/workout-logs";
 import { ensureDefaultWorkoutTemplates } from "@/lib/default-workout-templates";
+import { createWorkoutTemplateForUser, listWorkoutTemplatesForUser } from "@/lib/workout-template-service";
 import { workoutTemplatePayloadSchema } from "@/lib/validators";
 
 export async function GET(req: NextRequest) {
   const userId = await requireUserIdFromRequest(req);
   await ensureDefaultWorkoutTemplates(userId);
-  const templates = await listWorkoutTemplates(userId);
+  const category = req.nextUrl.searchParams.get("category") ?? undefined;
+  const templates = await listWorkoutTemplatesForUser(userId, category ?? undefined);
   return NextResponse.json(templates);
 }
 
@@ -18,6 +19,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid template payload", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const template = await createWorkoutTemplate({ userId, ...parsed.data });
+  const template = await createWorkoutTemplateForUser(userId, parsed.data);
   return NextResponse.json(template);
 }

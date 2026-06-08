@@ -8,13 +8,16 @@ import {
   getWorkoutSummaryForWeek,
   listWorkoutLogsForDate,
 } from "@/lib/domain/workout-logs";
+import { ensureDefaultWorkoutTemplates } from "@/lib/default-workout-templates";
+import { suggestWorkoutTemplate } from "@/lib/workout-recommendations";
+import { listWorkoutTemplatesForUser } from "@/lib/workout-template-service";
+import { buildMealCaloriesSeries } from "@/lib/meal-chart-data";
 import { buildLegacyGamificationSummary } from "@/lib/gamification-legacy";
 import { countWeeklyWorkoutDays } from "@/lib/workout-summary";
 import { workoutTypeLabel } from "@/types/workout";
 import { redirect } from "next/navigation";
 import { requireUserIdForPage } from "@/lib/auth";
-import { listMealTemplates } from "@/lib/meal-template-service";
-import { mealSlotFromHour } from "@/lib/meal-templates";
+import { withPrismaRetry } from "@/lib/prisma-retry";
 import { SectionHeader } from "@/components/SectionHeader";
 import { RankBadge } from "@/components/dashboard/RankBadge";
 import { DashboardHomeClient } from "@/components/dashboard/DashboardHomeClient";
@@ -53,60 +56,60 @@ export default async function DashboardPage({
     recentWeightsT,
     meals7d,
     monthMeals,
-    mealTemplates,
-  ] = await Promise.all([
-    prisma.mealEntry.findMany({ where: { userId, date: { gte: dayStart, lte: endOfDay(today) } } }),
-    prisma.goalSetting.findUnique({ where: { userId } }),
-    prisma.hydrationLog.findUnique({ where: { userId_date: { userId, date: dayStart } } }),
-    prisma.mealEntry.findMany({
-      where: { userId, date: { gte: getDaysAgo(400) } },
-      select: { date: true },
-    }),
-    prisma.weightLog.findMany({
-      where: { userId, date: { gte: getDaysAgo(29) } },
-      orderBy: { date: "asc" },
-      select: { id: true, userId: true, weight: true, date: true, waistCm: true, createdAt: true, updatedAt: true },
-    }),
-    prisma.workoutLog.findMany({
-      where: { userId, workoutDate: { gte: weekStart, lte: endOfDay(today) } },
-      select: { workoutDate: true },
-    }),
-    prisma.workoutLog.findMany({
-      where: { userId, workoutDate: { gte: since90 } },
-      select: { workoutDate: true },
-    }),
-    prisma.workoutLog.findMany({
-      where: { userId, workoutDate: { gte: prevMonthStart } },
-      select: { workoutDate: true, workoutType: true },
-    }),
-    prisma.mealEntry.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      select: { id: true, mealType: true, totalCalories: true, createdAt: true },
-    }),
-    prisma.workoutLog.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      select: { id: true, workoutName: true, duration: true, caloriesBurned: true, createdAt: true },
-    }),
-    prisma.weightLog.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 8,
-      select: { id: true, weight: true, date: true, createdAt: true },
-    }),
-    prisma.mealEntry.findMany({
-      where: { userId, date: { gte: weekStart, lte: endOfDay(today) } },
-      select: { date: true, totalCalories: true },
-    }),
-    prisma.mealEntry.findMany({
-      where: { userId, date: { gte: monthStart } },
-      select: { totalCalories: true },
-    }),
-    listMealTemplates(userId),
-  ]);
+  ] = await withPrismaRetry(() =>
+    Promise.all([
+      prisma.mealEntry.findMany({ where: { userId, date: { gte: dayStart, lte: endOfDay(today) } } }),
+      prisma.goalSetting.findUnique({ where: { userId } }),
+      prisma.hydrationLog.findUnique({ where: { userId_date: { userId, date: dayStart } } }),
+      prisma.mealEntry.findMany({
+        where: { userId, date: { gte: getDaysAgo(400) } },
+        select: { date: true },
+      }),
+      prisma.weightLog.findMany({
+        where: { userId, date: { gte: getDaysAgo(29) } },
+        orderBy: { date: "asc" },
+        select: { id: true, userId: true, weight: true, date: true, waistCm: true, createdAt: true, updatedAt: true },
+      }),
+      prisma.workoutLog.findMany({
+        where: { userId, workoutDate: { gte: weekStart, lte: endOfDay(today) } },
+        select: { workoutDate: true, caloriesBurned: true },
+      }),
+      prisma.workoutLog.findMany({
+        where: { userId, workoutDate: { gte: since90 } },
+        select: { workoutDate: true },
+      }),
+      prisma.workoutLog.findMany({
+        where: { userId, workoutDate: { gte: prevMonthStart } },
+        select: { workoutDate: true, workoutType: true },
+      }),
+      prisma.mealEntry.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { id: true, mealType: true, totalCalories: true, createdAt: true },
+      }),
+      prisma.workoutLog.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { id: true, workoutName: true, duration: true, caloriesBurned: true, createdAt: true },
+      }),
+      prisma.weightLog.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: { id: true, weight: true, date: true, createdAt: true },
+      }),
+      prisma.mealEntry.findMany({
+        where: { userId, date: { gte: weekStart, lte: endOfDay(today) } },
+        select: { date: true, totalCalories: true },
+      }),
+      prisma.mealEntry.findMany({
+        where: { userId, date: { gte: monthStart } },
+        select: { totalCalories: true },
+      }),
+    ]),
+  );
 
   if (!goals) redirect("/onboarding");
 
@@ -136,11 +139,26 @@ export default async function DashboardPage({
   const waterGoalMl = goals.waterTargetMl ?? 2000;
   const waterPct = Math.min(100, Math.round((waterMl / waterGoalMl) * 100));
 
-  const [todayWorkoutLogs, workoutSummaryToday, workoutSummaryWeek] = await Promise.all([
-    listWorkoutLogsForDate(userId, todayKey),
-    getWorkoutSummaryForDate(userId, todayKey),
-    getWorkoutSummaryForWeek(userId),
-  ]);
+  await ensureDefaultWorkoutTemplates(userId);
+
+  const [todayWorkoutLogs, workoutSummaryToday, workoutSummaryWeek, workoutTemplates, workoutHistoryForSuggest] =
+    await withPrismaRetry(() =>
+      Promise.all([
+        listWorkoutLogsForDate(userId, todayKey),
+        getWorkoutSummaryForDate(userId, todayKey),
+        getWorkoutSummaryForWeek(userId),
+        listWorkoutTemplatesForUser(userId),
+        prisma.workoutLog.findMany({
+          where: { userId },
+          orderBy: { workoutDate: "desc" },
+          take: 60,
+          select: { workoutDate: true, workoutType: true },
+        }),
+      ]),
+    );
+
+  const workoutSuggestion = suggestWorkoutTemplate(workoutTemplates, workoutHistoryForSuggest);
+  const caloriesConsumedLast7Days = buildMealCaloriesSeries(meals7d, today);
 
   const todayWorkoutPlan = {
     title: todayWorkoutLogs.length ? todayWorkoutLogs[0].workoutName : "Log your activity",
@@ -258,8 +276,9 @@ export default async function DashboardPage({
     timeline,
     insights,
     personalRecords,
-    mealTemplates,
-    initialMealSlot: mealSlotFromHour(today.getHours()),
+    workoutTemplates,
+    workoutSuggestion,
+    caloriesConsumedLast7Days,
     showWelcome: sp.welcome === "1",
   };
 

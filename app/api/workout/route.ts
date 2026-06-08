@@ -24,7 +24,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const userId = await requireUserIdFromRequest(req);
+  let userId: string;
+  try {
+    userId = await requireUserIdFromRequest(req);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const parsed = workoutLogPayloadSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid workout payload", details: parsed.error.flatten() }, { status: 400 });

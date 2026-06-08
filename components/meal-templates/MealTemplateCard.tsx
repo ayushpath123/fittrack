@@ -29,7 +29,7 @@ export function MealTemplateCard({
   return (
     <div
       className={cn(
-        "premium-card rounded-xl text-left transition-transform",
+        "premium-card min-w-0 rounded-xl text-left transition-transform",
         interactive && "active:scale-[0.98]",
         compact ? "p-3" : "p-3.5",
         className,
@@ -56,15 +56,20 @@ export function MealTemplateCard({
       </button>
 
       {(onEdit || onDelete || onQuickLog) && (
-        <div className="mt-3 flex gap-1.5 border-t border-white/[0.08] pt-2.5">
+        <div
+          className={cn(
+            "mt-3 gap-1.5 border-t border-white/[0.08] pt-2.5",
+            onQuickLog ? "grid grid-cols-[minmax(0,1fr)_auto_auto]" : "flex justify-end",
+          )}
+        >
           {onQuickLog ? (
             <button
               type="button"
               onClick={onQuickLog}
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-[rgba(190,255,71,.14)] py-2 text-[10px] font-semibold text-[#B8E86A]"
+              className="inline-flex min-w-0 items-center justify-center gap-1 rounded-lg bg-[rgba(190,255,71,.14)] px-2 py-2 text-[10px] font-semibold text-[#B8E86A]"
             >
-              <Zap size={12} />
-              Quick Log
+              <Zap size={12} className="shrink-0" aria-hidden />
+              <span className="truncate">Quick Log</span>
             </button>
           ) : null}
           {onEdit ? (
@@ -72,10 +77,10 @@ export function MealTemplateCard({
               type="button"
               onClick={onEdit}
               aria-label={`Edit ${template.name}`}
-              className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-[10px] font-semibold text-[var(--muted)]"
+              title="Edit"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 text-[var(--muted)] hover:text-[var(--white)]"
             >
-              <Pencil size={12} />
-              Edit
+              <Pencil size={13} aria-hidden />
             </button>
           ) : null}
           {onDelete ? (
@@ -83,10 +88,10 @@ export function MealTemplateCard({
               type="button"
               onClick={onDelete}
               aria-label={`Delete ${template.name}`}
-              className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-500/20 px-3 py-2 text-[10px] font-semibold text-red-400"
+              title="Delete"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10"
             >
-              <Trash2 size={12} />
-              Delete
+              <Trash2 size={13} aria-hidden />
             </button>
           ) : null}
         </div>

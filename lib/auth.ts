@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
@@ -193,7 +194,12 @@ export function getBearerToken(req: NextRequest) {
   return token;
 }
 
+/** API routes behind next-auth middleware must read the JWT from the request, not getServerSession(). */
 export async function requireUserIdFromRequest(req: NextRequest) {
-  void req;
-  return requireUserId();
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const userId = typeof token?.sub === "string" ? token.sub : null;
+  if (!userId) throw new Error("Unauthorized");
+  const row = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  if (!row) throw new StaleSessionError();
+  return userId;
 }

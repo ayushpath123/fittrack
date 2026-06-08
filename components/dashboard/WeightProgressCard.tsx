@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { ChevronRight, Scale } from "lucide-react";
-import { WeightMiniChart } from "@/components/WeightMiniChart";
 import { computeWeightAnalytics, WEIGHT_UNIT } from "@/lib/weight-analytics";
 import type { WeightLogType } from "@/types";
 
@@ -48,8 +47,6 @@ export function WeightProgressCard({ logs }: WeightProgressCardProps) {
       ? `${analytics.monthlyChange > 0 ? "+" : ""}${analytics.monthlyChange.toFixed(1)} ${WEIGHT_UNIT}`
       : "—";
 
-  const chartLogs = [...logs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(-7);
-
   return (
     <section className="premium-card rounded-[var(--radius-card)] p-3.5">
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -75,12 +72,6 @@ export function WeightProgressCard({ logs }: WeightProgressCardProps) {
         />
         <MetricCell label="Monthly Change" value={monthlyChange} />
       </div>
-
-      {chartLogs.length >= 2 ? (
-        <div className="mt-3 -mx-1">
-          <WeightMiniChart data={chartLogs} />
-        </div>
-      ) : null}
     </section>
   );
 }
