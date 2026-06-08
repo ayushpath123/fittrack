@@ -144,17 +144,9 @@ export default async function ActivityPage() {
     <div className="flex min-h-[calc(100dvh-var(--app-header-h)-var(--app-bottom-nav-h)-1.25rem)] flex-col pb-2">
       <SectionHeader
         className="mb-3"
-        eyebrow="Extras"
-        title="More"
-        subtitle="Stats, game, calendar, and your full activity feed."
-        action={
-          <Link
-            href="/dashboard"
-            className="inline-flex min-h-9 items-center rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2 text-[11px] font-semibold text-[var(--white)]"
-          >
-            Home
-          </Link>
-        }
+        eyebrow="Explore"
+        title="Activity"
+        subtitle="Streaks, shortcuts, and your full activity feed."
       />
 
       <div className="mb-4 grid grid-cols-2 gap-2">

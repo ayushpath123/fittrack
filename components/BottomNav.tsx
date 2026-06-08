@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Bot,
   Dumbbell,
   LayoutDashboard,
-  MoreHorizontal,
   Scale,
   Utensils,
 } from "lucide-react";
@@ -15,7 +15,7 @@ const tabs = [
   { href: "/meals", label: "Calories", icon: Utensils },
   { href: "/workout", label: "Workout", icon: Dumbbell },
   { href: "/weight", label: "Weight", icon: Scale },
-  { href: "/activity", label: "More", icon: MoreHorizontal },
+  { href: "/coach", label: "Coach", icon: Bot },
 ];
 
 export function BottomNav() {
@@ -32,12 +32,7 @@ export function BottomNav() {
     >
       <div className="mx-auto flex h-[var(--app-bottom-nav-h)] w-full max-w-md items-center gap-1 px-2 pb-safe">
         {tabs.map(({ href, label, icon: Icon }) => {
-          const active =
-            href === "/activity"
-              ? ["/activity", "/analytics", "/calendar", "/game", "/leaderboards", "/coach", "/settings"].some((p) =>
-                  path.startsWith(p),
-                )
-              : path.startsWith(href);
+          const active = path.startsWith(href);
           return (
             <Link
               key={href}

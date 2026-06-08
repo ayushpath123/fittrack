@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ChevronLeft, Loader2, Send, Sparkles } from "lucide-react";
+import { Loader2, Send, Sparkles } from "lucide-react";
+import { SectionHeader } from "@/components/SectionHeader";
 
 type CoachAction = { label: string; href: string };
 type ChatTurn = { role: "user" | "assistant"; content: string };
@@ -121,15 +122,11 @@ export function CoachClient() {
   if (!hasPro) {
     return (
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-1 rounded-xl border border-[rgba(255,255,255,.1)] px-2.5 py-1.5 text-xs text-[var(--muted)]"
-          >
-            <ChevronLeft size={13} />
-            Back
-          </Link>
-        </div>
+        <SectionHeader
+          eyebrow="AI guidance"
+          title="Coach"
+          subtitle="Personal answers from your logs and goals."
+        />
         <div className="premium-card rounded-2xl p-5">
           <div className="mb-2 inline-flex items-center gap-1 rounded-full border border-[rgba(190,255,71,.35)] bg-[rgba(190,255,71,.15)] px-2 py-1 text-[10px] font-semibold text-[#B8E86A]">
             <Sparkles size={11} />
@@ -150,27 +147,20 @@ export function CoachClient() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-1 rounded-xl border border-[rgba(255,255,255,.1)] px-2.5 py-1.5 text-xs text-[var(--muted)]"
-        >
-          <ChevronLeft size={13} />
-          Back
-        </Link>
-        <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(190,255,71,.35)] bg-[rgba(190,255,71,.15)] px-2 py-1 text-[10px] font-semibold text-[#B8E86A]">
-          <Sparkles size={11} />
-          Gemini Coach
-        </span>
-      </div>
+      <SectionHeader
+        eyebrow="AI guidance"
+        title="Coach"
+        subtitle="Answers use your goals and live app data via tool calling."
+        action={
+          <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(190,255,71,.35)] bg-[rgba(190,255,71,.15)] px-2 py-1 text-[10px] font-semibold text-[#B8E86A]">
+            <Sparkles size={11} />
+            Pro
+          </span>
+        }
+      />
 
       <div className="premium-card rounded-2xl p-4">
-        <h1 className="num text-xl font-bold text-[var(--white)]">AI Coach</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Answers use your goals and live app data via tool calling. Powered by Gemini Flash-Lite.
-        </p>
-
-        <div className="mt-3 flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {STARTERS.map((s) => (
             <button
               key={s}

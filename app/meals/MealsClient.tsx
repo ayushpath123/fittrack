@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Camera, Plus, Settings2 } from "lucide-react";
+import { BookOpen, Camera, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { AddMealFlow } from "@/components/meal-templates/AddMealFlow";
 import { MealTypeTabs } from "@/components/meal-templates/MealTypeTabs";
@@ -178,13 +178,6 @@ export function MealsClient({
               aria-label="Meal templates"
             >
               <BookOpen size={16} />
-            </Link>
-            <Link
-              href="/settings"
-              className="inline-flex min-h-10 items-center rounded-xl border border-white/12 bg-white/[0.05] px-2.5 text-[var(--muted)]"
-              aria-label="Edit targets"
-            >
-              <Settings2 size={16} />
             </Link>
             <Link
               href="/meals/ai"

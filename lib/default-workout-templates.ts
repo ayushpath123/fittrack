@@ -18,7 +18,7 @@ const STRENGTH_TEMPLATES: BuiltinTemplate[] = [
     intensityLevel: "high",
     category: "strength",
     duration: 45,
-    caloriesBurned: 500,
+    caloriesBurned: 300,
     exercises: [
       ex("Bench Press"),
       ex("Incline Dumbbell Press"),
@@ -37,7 +37,7 @@ const STRENGTH_TEMPLATES: BuiltinTemplate[] = [
     intensityLevel: "medium",
     category: "strength",
     duration: 45,
-    caloriesBurned: 470,
+    caloriesBurned: 270,
     exercises: [
       ex("Overhead Press"),
       ex("Lateral Raises", 3, "12-15", 60),
@@ -56,7 +56,7 @@ const STRENGTH_TEMPLATES: BuiltinTemplate[] = [
     intensityLevel: "medium",
     category: "strength",
     duration: 45,
-    caloriesBurned: 450,
+    caloriesBurned: 250,
     exercises: [
       ex("Barbell Curl"),
       ex("Hammer Curl"),
@@ -75,7 +75,7 @@ const STRENGTH_TEMPLATES: BuiltinTemplate[] = [
     intensityLevel: "high",
     category: "strength",
     duration: 45,
-    caloriesBurned: 540,
+    caloriesBurned: 340,
     exercises: [
       ex("Pull Up", 3, "6-10"),
       ex("Lat Pulldown"),
@@ -94,7 +94,7 @@ const STRENGTH_TEMPLATES: BuiltinTemplate[] = [
     intensityLevel: "high",
     category: "strength",
     duration: 45,
-    caloriesBurned: 625,
+    caloriesBurned: 425,
     exercises: [
       ex("Squat", 4, "6-10", 120),
       ex("Leg Press"),
@@ -116,7 +116,7 @@ const CARDIO_TEMPLATES: BuiltinTemplate[] = [
     intensityLevel: "low",
     category: "cardio",
     duration: 30,
-    caloriesBurned: 150,
+    caloriesBurned: 200,
     exercises: [],
     cardioType: "walking",
     cardioDistance: 3,
@@ -147,8 +147,8 @@ const CARDIO_TEMPLATES: BuiltinTemplate[] = [
     colorTheme: "cardio",
     intensityLevel: "medium",
     category: "cardio",
-    duration: 40,
-    caloriesBurned: 350,
+    duration: 30,
+    caloriesBurned: 220,
     exercises: [],
     cardioType: "cycling",
     cardioDistance: 15,
@@ -163,8 +163,8 @@ const CARDIO_TEMPLATES: BuiltinTemplate[] = [
     colorTheme: "cardio",
     intensityLevel: "medium",
     category: "cardio",
-    duration: 25,
-    caloriesBurned: 250,
+    duration: 20,
+    caloriesBurned: 200,
     exercises: [],
     cardioType: "treadmill",
     cardioDistance: 4,
@@ -180,7 +180,7 @@ const CARDIO_TEMPLATES: BuiltinTemplate[] = [
     intensityLevel: "high",
     category: "cardio",
     duration: 20,
-    caloriesBurned: 200,
+    caloriesBurned: 250,
     exercises: [],
     cardioType: "stair_climber",
   },
@@ -222,7 +222,7 @@ export function getBuiltinTemplateByType(workoutType: WorkoutTypeKind): BuiltinT
   return STRENGTH_TEMPLATES.find((t) => t.workoutType === workoutType);
 }
 
-/** Seeds built-in templates once; never overwrites user-edited values. */
+/** Seeds built-in templates; syncs duration and calories with canonical defaults. */
 export async function ensureDefaultWorkoutTemplates(userId: string): Promise<void> {
   for (const template of ALL_BUILTIN_TEMPLATES) {
     const { builtinKey, exercises, ...rest } = template;
@@ -234,7 +234,10 @@ export async function ensureDefaultWorkoutTemplates(userId: string): Promise<voi
         exercises: exercises as object,
         ...rest,
       },
-      update: {},
+      update: {
+        duration: rest.duration,
+        caloriesBurned: rest.caloriesBurned,
+      },
     });
   }
 }
