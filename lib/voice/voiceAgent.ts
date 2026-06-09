@@ -7,6 +7,7 @@ import {
 import { estimateFoodMacros } from "@/lib/voice/estimateMacros";
 import { extractFromTranscript } from "@/lib/voice/nlpPipeline";
 import { detectCardioKeyword, parseWeightKg, stripSpeechFillers } from "@/lib/voice/normalizeSpeech";
+import { loadVoiceSearchContext, type VoiceSearchContext } from "@/lib/voice/searchContext";
 import { parseWaterMl, searchForEntity } from "@/lib/voice/semanticSearch";
 import { tierFromConfidence } from "@/lib/voice/fuzzyMatch";
 import type { MatchCandidate } from "@/lib/voice/types";
@@ -46,6 +47,7 @@ async function entityToDraft(
   utteranceMealType: MealType | undefined,
   transcriptMealType: MealType | undefined,
   apiKey: string,
+  searchCtx: VoiceSearchContext,
 ): Promise<VoiceDraftItem | null> {
   const intent = entity.intent === "supplement" ? "food" : entity.intent;
 
@@ -81,7 +83,7 @@ async function entityToDraft(
     const searchText = stripSpeechFillers(entity.raw) || entity.raw;
     const cardioHint = detectCardioKeyword(searchText);
     const searchIntent = intent === "cardio" || cardioHint ? "cardio" : "workout";
-    const search = await searchForEntity(userId, searchText, searchIntent);
+    const search = await searchForEntity(userId, searchText, searchIntent, { ctx: searchCtx });
     const duration = entity.durationMinutes;
 
     let match = search.best;
@@ -123,7 +125,7 @@ async function entityToDraft(
   if (intent === "food") {
     const mealType = resolveMealType(entity, utteranceMealType, transcriptMealType);
     const searchText = stripSpeechFillers(stripMealTypePhrases(entity.raw) || entity.raw) || entity.raw;
-    const search = await searchForEntity(userId, searchText, "food", { mealType });
+    const search = await searchForEntity(userId, searchText, "food", { mealType, ctx: searchCtx });
     const templateMatch =
       (search.best && isMealTemplateMatch(search.best) ? search.best : null) ??
       search.candidates.find(isMealTemplateMatch) ??
@@ -197,11 +199,14 @@ export async function processVoiceTranscript(
   apiKey: string,
   userId: string,
   transcript: string,
+  searchCtx?: VoiceSearchContext,
 ): Promise<VoiceProcessResult> {
   const trimmed = transcript.trim();
   if (!trimmed) {
     return { transcript: "", items: [], stage: "error" };
   }
+
+  const ctx = searchCtx ?? (await loadVoiceSearchContext(userId));
 
   const nlp = await extractFromTranscript(apiKey, trimmed, userId);
   const utteranceMealType = parseMealType(nlp.mealType);
@@ -237,11 +242,12 @@ export async function processVoiceTranscript(
     };
   }
 
-  const drafts: VoiceDraftItem[] = [];
-  for (const entity of nlp.entities) {
-    const draft = await entityToDraft(userId, entity, utteranceMealType, transcriptMealType, apiKey);
-    if (draft) drafts.push(draft);
-  }
+  const draftResults = await Promise.all(
+    nlp.entities.map((entity) =>
+      entityToDraft(userId, entity, utteranceMealType, transcriptMealType, apiKey, ctx),
+    ),
+  );
+  const drafts = draftResults.filter((d): d is VoiceDraftItem => d !== null);
 
   const allAuto = drafts.length > 0 && drafts.every((d) => d.status === "auto");
   return {

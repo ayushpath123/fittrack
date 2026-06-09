@@ -6,6 +6,7 @@ import {
   type StructuredVoiceLog,
 } from "@/lib/voice/nlpSchema";
 import { parseWeightKg } from "@/lib/voice/normalizeSpeech";
+import { parseWaterMl } from "@/lib/voice/semanticSearch";
 import type { ExtractedEntity, NlpExtraction, VoiceIntent } from "@/lib/voice/types";
 
 const SYSTEM_PROMPT = `You are a fitness logging NLP engine for an Indian fitness app (FitTrack).

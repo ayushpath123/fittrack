@@ -9,7 +9,10 @@ import {
 } from "@/lib/voice/fuzzyMatch";
 import { buildUserAliasMap, lookupAlias } from "@/lib/voice/memory";
 import { detectCardioKeyword, queryTokenCoverage, stripSpeechFillers } from "@/lib/voice/normalizeSpeech";
+import type { VoiceSearchContext } from "@/lib/voice/searchContext";
+import type { MealTemplate } from "@/types/meal-template";
 import type { MealType } from "@/types/meal-template";
+import type { WorkoutTemplateType } from "@/types/workout";
 import type { MatchCandidate } from "@/lib/voice/types";
 
 /** Semantic synonyms for workout/food matching without embeddings. */
@@ -57,16 +60,13 @@ export type SearchResult = {
   tier: ConfidenceTier;
 };
 
-async function searchMealTemplates(
-  userId: string,
+function searchMealTemplatesFromList(
+  templates: MealTemplate[],
+  aliases: VoiceSearchContext["aliases"],
   query: string,
   preferredMealType?: MealType,
-): Promise<SearchResult> {
+): SearchResult {
   const cleanQuery = stripSpeechFillers(query) || query;
-  const [templates, aliases] = await Promise.all([
-    listMealTemplates(userId),
-    buildUserAliasMap(userId),
-  ]);
 
   const aliasHit = lookupAlias(aliases, cleanQuery);
   if (aliasHit?.targetType === "meal_template") {
@@ -117,6 +117,19 @@ async function searchMealTemplates(
   return { candidates: top, best, tier };
 }
 
+async function searchMealTemplates(
+  userId: string,
+  query: string,
+  preferredMealType?: MealType,
+  ctx?: VoiceSearchContext,
+): Promise<SearchResult> {
+  if (ctx) {
+    return searchMealTemplatesFromList(ctx.mealTemplates, ctx.aliases, query, preferredMealType);
+  }
+  const [templates, aliases] = await Promise.all([listMealTemplates(userId), buildUserAliasMap(userId)]);
+  return searchMealTemplatesFromList(templates, aliases, query, preferredMealType);
+}
+
 async function searchFoodItems(query: string): Promise<SearchResult> {
   const cleanQuery = stripSpeechFillers(query) || query;
   const firstToken = significantFoodSearchToken(cleanQuery);
@@ -157,13 +170,13 @@ function significantFoodSearchToken(query: string): string {
   return tokens.find((t) => t.length > 3) ?? tokens[0] ?? query;
 }
 
-async function searchWorkoutTemplates(userId: string, query: string, category?: string): Promise<SearchResult> {
+function searchWorkoutTemplatesFromList(
+  templates: WorkoutTemplateType[],
+  aliases: VoiceSearchContext["aliases"],
+  query: string,
+): SearchResult {
   const cleanQuery = stripSpeechFillers(query) || query;
   const cardioKeyword = detectCardioKeyword(cleanQuery);
-  const [templates, aliases] = await Promise.all([
-    listWorkoutTemplatesForUser(userId, category),
-    buildUserAliasMap(userId),
-  ]);
 
   const aliasHit = lookupAlias(aliases, cleanQuery);
   if (aliasHit?.targetType === "workout_template") {
@@ -172,21 +185,9 @@ async function searchWorkoutTemplates(userId: string, query: string, category?: 
       const confidence = confidenceFromScore(0.94, Math.min(0.05, aliasHit.count * 0.003));
       return {
         candidates: [
-          {
-            id: template.id,
-            name: template.name,
-            confidence,
-            source: "memory",
-            meta: { template },
-          },
+          { id: template.id, name: template.name, confidence, source: "memory", meta: { template } },
         ],
-        best: {
-          id: template.id,
-          name: template.name,
-          confidence,
-          source: "memory",
-          meta: { template },
-        },
+        best: { id: template.id, name: template.name, confidence, source: "memory", meta: { template } },
         tier: "auto",
       };
     }
@@ -221,14 +222,33 @@ async function searchWorkoutTemplates(userId: string, query: string, category?: 
   return { candidates: top, best, tier: best ? tierFromConfidence(best.confidence) : "ask" };
 }
 
+async function searchWorkoutTemplates(
+  userId: string,
+  query: string,
+  category?: string,
+  ctx?: VoiceSearchContext,
+): Promise<SearchResult> {
+  if (ctx) {
+    const templates = category === "cardio" ? ctx.workoutCardioTemplates : ctx.workoutTemplates;
+    return searchWorkoutTemplatesFromList(templates, ctx.aliases, query);
+  }
+  const [templates, aliases] = await Promise.all([
+    listWorkoutTemplatesForUser(userId, category),
+    buildUserAliasMap(userId),
+  ]);
+  return searchWorkoutTemplatesFromList(templates, aliases, query);
+}
+
 export async function searchForEntity(
   userId: string,
   query: string,
   intent: "food" | "workout" | "cardio",
-  options?: { mealType?: MealType },
+  options?: { mealType?: MealType; ctx?: VoiceSearchContext },
 ): Promise<SearchResult> {
+  const ctx = options?.ctx;
+
   if (intent === "food") {
-    const templateResult = await searchMealTemplates(userId, query, options?.mealType);
+    const templateResult = await searchMealTemplates(userId, query, options?.mealType, ctx);
     const topTemplate = templateResult.best ?? templateResult.candidates[0] ?? null;
     const templateCoverage = (topTemplate?.meta?.coverage as number | undefined) ?? 0;
 
@@ -248,10 +268,10 @@ export async function searchForEntity(
   }
 
   if (intent === "cardio") {
-    return searchWorkoutTemplates(userId, query, "cardio");
+    return searchWorkoutTemplates(userId, query, "cardio", ctx);
   }
 
-  return searchWorkoutTemplates(userId, query);
+  return searchWorkoutTemplates(userId, query, undefined, ctx);
 }
 
 /** Parse water amount from natural language. */

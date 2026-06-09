@@ -4,9 +4,10 @@ import { LlmHttpError } from "@/lib/ai/anthropic";
 import { aiLog } from "@/lib/ai/log";
 
 const TRANSCRIBE_MODELS = [
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash-lite",
   "gemini-2.5-flash",
   "gemini-2.0-flash",
-  "gemini-2.5-flash-lite",
   "gemini-1.5-flash",
 ] as const;
 

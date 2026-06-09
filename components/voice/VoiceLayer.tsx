@@ -7,7 +7,6 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAudioRecorder } from "@/components/voice/useAudioRecorder";
 import { notifyLogsUpdated } from "@/lib/fittrack-events";
-import type { VoiceDraftItem } from "@/lib/voice/types";
 
 type ProStatus = "loading" | "pro" | "free";
 type VoicePhase = "idle" | "preparing" | "recording" | "transcribing" | "processing" | "logging";
@@ -212,103 +211,41 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [sessionStatus, showResult]);
 
-  const transcribeAudio = useCallback(async (blob: Blob): Promise<string | { error: string }> => {
-    setProgress("transcribing", "Sending audio to AI…");
-
-    try {
-      const form = new FormData();
-      form.append("audio", blob, "recording.webm");
-
-      const res = await fetch("/api/voice/transcribe", {
-        method: "POST",
-        credentials: "include",
-        body: form,
-      });
-
-      let data: { transcript?: string; error?: string; message?: string } = {};
-      try {
-        data = await res.json();
-      } catch {
-        return { error: "Transcription failed — invalid server response." };
-      }
-
-      if (!res.ok) {
-        return { error: parseApiError(res, data, "Transcription failed.") };
-      }
-
-      const transcript = data.transcript?.trim() ?? "";
-      if (!transcript) {
-        return { error: "Couldn't hear anything — speak louder and try again." };
-      }
-
-      setStatusText(`Heard: "${transcript}"`);
-      return transcript;
-    } catch {
-      return { error: "Transcription failed — network error." };
-    }
-  }, [setProgress]);
-
-  const processAndLog = useCallback(
-    async (text: string): Promise<{ ok: true; message: string } | { error: string }> => {
-      setProgress("processing", "Understanding what you said…");
+  const runVoicePipeline = useCallback(
+    async (blob: Blob): Promise<{ ok: true; message: string; transcript: string } | { error: string }> => {
+      setProgress("transcribing", "Processing your voice…");
 
       try {
-        const processRes = await fetch("/api/voice/process", {
+        const form = new FormData();
+        form.append("audio", blob, "recording.webm");
+
+        const res = await fetch("/api/voice/pipeline", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ transcript: text }),
+          body: form,
         });
 
-        let processData: { items?: VoiceDraftItem[]; error?: string; message?: string } = {};
+        let data: { transcript?: string; message?: string; error?: string } = {};
         try {
-          processData = await processRes.json();
+          data = await res.json();
         } catch {
-          return { error: "AI processing failed — invalid response." };
+          return { error: "Voice pipeline failed — invalid server response." };
         }
 
-        if (!processRes.ok) {
-          return { error: parseApiError(processRes, processData, "AI could not understand that.") };
+        if (!res.ok) {
+          return { error: parseApiError(res, data, "Voice logging failed.") };
         }
 
-        const items = processData.items ?? [];
-        if (items.length === 0) {
-          return { error: "Nothing to log — name the food or workout clearly." };
+        const transcript = data.transcript?.trim() ?? "";
+        if (transcript) setStatusText(`Heard: "${transcript}"`);
+
+        const message = data.message?.trim();
+        if (!message) {
+          return { error: "Nothing was logged — try again." };
         }
 
-        setProgress("logging", `Saving ${items.length} item${items.length > 1 ? "s" : ""}…`);
-
-        const confirmRes = await fetch("/api/voice/confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            items: items.map((d) => ({ draftId: d.id, payload: d.payload })),
-          }),
-        });
-
-        let confirmData: { logged?: Array<{ label: string; success: boolean; error?: string }>; error?: string } =
-          {};
-        try {
-          confirmData = await confirmRes.json();
-        } catch {
-          return { error: "Failed to save — invalid response." };
-        }
-
-        if (!confirmRes.ok) {
-          return { error: confirmData.error ?? "Failed to save logs." };
-        }
-
-        const labels = (confirmData.logged ?? []).filter((l) => l.success).map((l) => l.label);
-
-        if (labels.length === 0) {
-          const err = (confirmData.logged ?? []).find((l) => !l.success)?.error;
-          return { error: err ?? "Could not save any logs." };
-        }
-
-        const message = labels.length === 1 ? `Logged ${labels[0]}` : `Logged ${labels.length} items`;
         notifyLogsUpdated();
-        return { ok: true, message };
+        return { ok: true, message, transcript };
       } catch {
         return { error: "Network error — check connection and try again." };
       }
@@ -345,19 +282,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const transcriptResult = await transcribeAudio(audio.blob);
-      if (typeof transcriptResult !== "string") {
-        showResult("error", transcriptResult.error);
+      const result = await runVoicePipeline(audio.blob);
+      if ("error" in result) {
+        showResult("error", result.error);
         return;
       }
 
-      const logResult = await processAndLog(transcriptResult);
-      if ("error" in logResult) {
-        showResult("error", logResult.error);
-        return;
-      }
-
-      showResult("success", logResult.message);
+      showResult("success", result.message);
     } catch (err) {
       console.error("[voice] pipeline error", err);
       showResult("error", "Something went wrong — please try again.");
@@ -365,7 +296,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       pipelineBusyRef.current = false;
       resetIdle();
     }
-  }, [processAndLog, recorder, resetIdle, setProgress, showResult, transcribeAudio]);
+  }, [recorder, resetIdle, runVoicePipeline, showResult]);
 
   const startRecording = useCallback(async () => {
     if (pipelineBusyRef.current) return;
