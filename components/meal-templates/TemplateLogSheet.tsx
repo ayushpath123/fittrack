@@ -7,6 +7,7 @@ import { MacroDisplay } from "@/components/meal-templates/MacroDisplay";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { scaleMacros } from "@/lib/meal-templates";
+import { numberToInputValue, parseNumericInput, sanitizeNumericInput } from "@/lib/numeric-input";
 import type { MacroSnapshot } from "@/lib/meal-templates";
 import type { MealTemplate, MealType } from "@/types/meal-template";
 
@@ -24,6 +25,12 @@ export function TemplateLogSheet({ open, template, mealType, onClose, onLog }: T
   const [servings, setServings] = useState(1);
   const [editing, setEditing] = useState(false);
   const [customMacros, setCustomMacros] = useState<MacroSnapshot | null>(null);
+  const [macroFields, setMacroFields] = useState<Record<keyof MacroSnapshot, string>>({
+    calories: "",
+    protein: "",
+    carbs: "",
+    fat: "",
+  });
   const [logging, setLogging] = useState(false);
 
   const baseMacros = useMemo(
@@ -53,6 +60,12 @@ export function TemplateLogSheet({ open, template, mealType, onClose, onLog }: T
   useEffect(() => {
     if (editing) {
       setCustomMacros(scaledMacros);
+      setMacroFields({
+        calories: numberToInputValue(scaledMacros.calories),
+        protein: numberToInputValue(scaledMacros.protein),
+        carbs: numberToInputValue(scaledMacros.carbs),
+        fat: numberToInputValue(scaledMacros.fat),
+      });
     }
   }, [editing, scaledMacros]);
 
@@ -68,9 +81,17 @@ export function TemplateLogSheet({ open, template, mealType, onClose, onLog }: T
   async function handleLog() {
     if (!template) return;
     setLogging(true);
+    const macrosFromFields = editing
+      ? {
+          calories: parseNumericInput(macroFields.calories),
+          protein: parseNumericInput(macroFields.protein),
+          carbs: parseNumericInput(macroFields.carbs),
+          fat: parseNumericInput(macroFields.fat),
+        }
+      : displayMacros;
     const ok = await onLog({
       servings: editing ? 1 : servings,
-      macros: displayMacros,
+      macros: macrosFromFields,
       mealType,
     });
     setLogging(false);
@@ -137,13 +158,17 @@ export function TemplateLogSheet({ open, template, mealType, onClose, onLog }: T
               key={key}
               label={`${label} (${unit})`}
               tone="glass"
-              type="number"
+              type="text"
               inputMode="decimal"
-              min={0}
-              value={customMacros?.[key] ?? 0}
+              placeholder="0"
+              value={macroFields[key]}
               onChange={(e) => {
-                const value = Math.max(0, Number(e.target.value) || 0);
-                setCustomMacros((prev) => ({ ...(prev ?? scaledMacros), [key]: value }));
+                const value = sanitizeNumericInput(e.target.value);
+                setMacroFields((prev) => ({ ...prev, [key]: value }));
+                setCustomMacros((prev) => ({
+                  ...(prev ?? scaledMacros),
+                  [key]: parseNumericInput(value),
+                }));
               }}
             />
           ))}

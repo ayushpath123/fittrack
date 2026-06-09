@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, Zap } from "lucide-react";
+import { Loader2, Pencil, Trash2, Zap } from "lucide-react";
 import { MacroDisplay } from "@/components/meal-templates/MacroDisplay";
 import type { MealTemplate } from "@/types/meal-template";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,8 @@ type MealTemplateCardProps = {
   onQuickLog?: () => void;
   onSelect?: () => void;
   compact?: boolean;
+  disabled?: boolean;
+  loading?: boolean;
   className?: string;
 };
 
@@ -22,6 +24,8 @@ export function MealTemplateCard({
   onQuickLog,
   onSelect,
   compact = false,
+  disabled = false,
+  loading = false,
   className,
 }: MealTemplateCardProps) {
   const interactive = Boolean(onSelect);
@@ -38,10 +42,13 @@ export function MealTemplateCard({
       <button
         type="button"
         onClick={onSelect}
-        disabled={!onSelect}
-        className={cn("w-full text-left", !onSelect && "cursor-default")}
+        disabled={!onSelect || disabled || loading}
+        className={cn("w-full text-left", !onSelect && "cursor-default", (disabled || loading) && "opacity-60")}
       >
-        <p className="text-sm font-semibold text-[var(--white)]">{template.name}</p>
+        <p className="flex items-center gap-2 text-sm font-semibold text-[var(--white)]">
+          {template.name}
+          {loading ? <Loader2 size={14} className="animate-spin text-[#BEFF47]" aria-hidden /> : null}
+        </p>
         <div className="mt-2">
           <MacroDisplay
             macros={{

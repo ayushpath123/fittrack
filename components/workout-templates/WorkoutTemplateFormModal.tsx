@@ -6,6 +6,7 @@ import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { WorkoutTypeSelect } from "@/components/workout/WorkoutTypeSelect";
+import { sanitizeNumericInput, parseIntegerInput } from "@/lib/numeric-input";
 import {
   CARDIO_TYPES,
   INTENSITY_LEVELS,
@@ -140,8 +141,22 @@ export function WorkoutTemplateFormModal({ open, initial, onClose, onSave }: Wor
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <Input label="Duration (min)" tone="glass" type="number" value={duration} onChange={(e) => setDuration(e.target.value)} />
-            <Input label="Calories" tone="glass" type="number" value={calories} onChange={(e) => setCalories(e.target.value)} />
+            <Input
+              label="Duration (min)"
+              tone="glass"
+              type="text"
+              inputMode="numeric"
+              value={duration}
+              onChange={(e) => setDuration(sanitizeNumericInput(e.target.value))}
+            />
+            <Input
+              label="Calories"
+              tone="glass"
+              type="text"
+              inputMode="numeric"
+              value={calories}
+              onChange={(e) => setCalories(sanitizeNumericInput(e.target.value))}
+            />
           </div>
 
           <div>
@@ -199,12 +214,14 @@ export function WorkoutTemplateFormModal({ open, initial, onClose, onSave }: Wor
                     />
                     <Input
                       tone="glass"
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       placeholder="Sets"
-                      value={ex.sets}
+                      value={String(ex.sets)}
                       onChange={(e) => {
                         const next = [...exercises];
-                        next[i] = { ...ex, sets: parseInt(e.target.value, 10) || 1 };
+                        const sets = Math.max(1, parseIntegerInput(sanitizeNumericInput(e.target.value)) || 1);
+                        next[i] = { ...ex, sets };
                         setExercises(next);
                       }}
                       className="w-16"

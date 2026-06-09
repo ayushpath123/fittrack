@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { MEAL_TYPES, labelMealType } from "@/lib/meal-templates";
+import { numberToInputValue, parseNumericInput, sanitizeNumericInput } from "@/lib/numeric-input";
 import type { MealTemplate, MealTemplateInput, MealType } from "@/types/meal-template";
 
 type MealTemplateFormModalProps = {
@@ -15,18 +17,27 @@ type MealTemplateFormModalProps = {
   defaultMealType?: MealType;
 };
 
-const emptyForm: MealTemplateInput = {
-  name: "",
-  mealType: "breakfast",
-  calories: 0,
-  protein: 0,
-  carbs: 0,
-  fat: 0,
-};
+type MacroFieldKey = "calories" | "protein" | "carbs" | "fat";
+type MacroFields = Record<MacroFieldKey, string>;
 
-function parseNumber(value: string): number {
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.max(0, n) : 0;
+const emptyMacros: MacroFields = { calories: "", protein: "", carbs: "", fat: "" };
+
+function macrosFromValues(values: Pick<MealTemplateInput, MacroFieldKey>): MacroFields {
+  return {
+    calories: numberToInputValue(values.calories),
+    protein: numberToInputValue(values.protein),
+    carbs: numberToInputValue(values.carbs),
+    fat: numberToInputValue(values.fat),
+  };
+}
+
+function macrosToNumbers(fields: MacroFields): Pick<MealTemplateInput, MacroFieldKey> {
+  return {
+    calories: parseNumericInput(fields.calories),
+    protein: parseNumericInput(fields.protein),
+    carbs: parseNumericInput(fields.carbs),
+    fat: parseNumericInput(fields.fat),
+  };
 }
 
 export function MealTemplateFormModal({
@@ -36,35 +47,53 @@ export function MealTemplateFormModal({
   initial,
   defaultMealType = "breakfast",
 }: MealTemplateFormModalProps) {
-  const [form, setForm] = useState<MealTemplateInput>(emptyForm);
+  const [mounted, setMounted] = useState(false);
+  const [name, setName] = useState("");
+  const [mealType, setMealType] = useState<MealType>("breakfast");
+  const [macros, setMacros] = useState<MacroFields>(emptyMacros);
   const [errors, setErrors] = useState<Partial<Record<keyof MealTemplateInput, string>>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     if (initial) {
-      setForm({
-        name: initial.name,
-        mealType: initial.mealType,
-        calories: initial.calories,
-        protein: initial.protein,
-        carbs: initial.carbs,
-        fat: initial.fat,
-      });
+      setName(initial.name);
+      setMealType(initial.mealType);
+      setMacros(macrosFromValues(initial));
     } else {
-      setForm({ ...emptyForm, mealType: defaultMealType });
+      setName("");
+      setMealType(defaultMealType);
+      setMacros(emptyMacros);
     }
     setErrors({});
   }, [open, initial, defaultMealType]);
 
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   function validate(): boolean {
+    const parsed = macrosToNumbers(macros);
     const next: Partial<Record<keyof MealTemplateInput, string>> = {};
-    if (!form.name.trim()) next.name = "Name is required";
-    if (!form.mealType) next.mealType = "Meal type is required";
-    if (!Number.isFinite(form.calories)) next.calories = "Calories required";
-    if (!Number.isFinite(form.protein)) next.protein = "Protein required";
-    if (!Number.isFinite(form.carbs)) next.carbs = "Carbs required";
-    if (!Number.isFinite(form.fat)) next.fat = "Fat required";
+    if (!name.trim()) next.name = "Name is required";
+    if (!mealType) next.mealType = "Meal type is required";
+    if (!macros.calories.trim()) next.calories = "Calories required";
+    if (!macros.protein.trim()) next.protein = "Protein required";
+    if (!macros.carbs.trim()) next.carbs = "Carbs required";
+    if (!macros.fat.trim()) next.fat = "Fat required";
+    if (!Number.isFinite(parsed.calories)) next.calories = "Calories required";
+    if (!Number.isFinite(parsed.protein)) next.protein = "Protein required";
+    if (!Number.isFinite(parsed.carbs)) next.carbs = "Carbs required";
+    if (!Number.isFinite(parsed.fat)) next.fat = "Fat required";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -72,21 +101,27 @@ export function MealTemplateFormModal({
   async function handleSave() {
     if (!validate()) return;
     setSaving(true);
-    const ok = await onSave(form);
+    const ok = await onSave({
+      name: name.trim(),
+      mealType,
+      ...macrosToNumbers(macros),
+    });
     setSaving(false);
     if (ok) onClose();
   }
 
-  if (!open) return null;
+  if (!mounted || !open) return null;
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center">
-      <button type="button" aria-label="Close" className="absolute inset-0 bg-black/60" onClick={onClose} />
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center" role="presentation">
+      <button type="button" aria-label="Close" className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={initial ? "Edit template" : "Create template"}
-        className="relative z-10 w-full max-w-md rounded-t-[1.35rem] border border-white/10 bg-[rgba(12,14,22,.98)] p-4 shadow-2xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+        className="relative z-10 w-full max-w-md max-h-[min(92vh,100dvh)] overflow-y-auto rounded-t-[1.35rem] border border-white/10 bg-[rgba(12,14,22,.98)] p-4 shadow-2xl sm:rounded-2xl"
+        style={{ animation: "sheet-up .35s cubic-bezier(.2,.8,.2,1)" }}
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-[var(--white)]">
@@ -105,8 +140,8 @@ export function MealTemplateFormModal({
           <Input
             label="Template Name"
             tone="glass"
-            value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             error={errors.name}
             placeholder="e.g. Protein Oats Bowl"
           />
@@ -114,8 +149,8 @@ export function MealTemplateFormModal({
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-[var(--muted)]">Meal Type</label>
             <select
-              value={form.mealType}
-              onChange={(e) => setForm((p) => ({ ...p, mealType: e.target.value as MealType }))}
+              value={mealType}
+              onChange={(e) => setMealType(e.target.value as MealType)}
               className="w-full rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm text-white focus:border-[#BEFF47]/35 focus:outline-none"
             >
               {MEAL_TYPES.map((type) => (
@@ -140,11 +175,13 @@ export function MealTemplateFormModal({
                 key={key}
                 label={`${label} (${unit})`}
                 tone="glass"
-                type="number"
+                type="text"
                 inputMode="decimal"
-                min={0}
-                value={form[key]}
-                onChange={(e) => setForm((p) => ({ ...p, [key]: parseNumber(e.target.value) }))}
+                placeholder="0"
+                value={macros[key]}
+                onChange={(e) =>
+                  setMacros((p) => ({ ...p, [key]: sanitizeNumericInput(e.target.value) }))
+                }
                 error={errors[key]}
               />
             ))}
@@ -160,6 +197,7 @@ export function MealTemplateFormModal({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

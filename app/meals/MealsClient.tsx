@@ -6,7 +6,7 @@ import { BookOpen, Camera, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { AddMealFlow } from "@/components/meal-templates/AddMealFlow";
 import { MealTypeTabs } from "@/components/meal-templates/MealTypeTabs";
-import { TemplateLogSheet } from "@/components/meal-templates/TemplateLogSheet";
+import { toLocalDateKey } from "@/lib/date";
 import { MealCard } from "@/components/MealCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { FirstLogCelebration } from "@/components/FirstLogCelebration";
@@ -44,7 +44,7 @@ export function MealsClient({
     initialSlot ? normalizeMealType(initialSlot) : detectMealTypeFromTime(),
   );
   const [addMealOpen, setAddMealOpen] = useState(openAddMeal);
-  const [quickLogTemplate, setQuickLogTemplate] = useState<MealTemplate | null>(null);
+  const [loggingTemplateId, setLoggingTemplateId] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<{ calories: number; protein: number; streakDays: number } | null>(null);
 
   useEffect(() => {
@@ -104,44 +104,46 @@ export function MealsClient({
     }
   }
 
-  async function logFromSheet(payload: {
-    servings: number;
-    macros: MacroSnapshot;
-    mealType: MealType;
-  }): Promise<boolean> {
-    if (!quickLogTemplate) return false;
+  async function logTemplateDirect(template: MealTemplate) {
+    if (loggingTemplateId) return;
+    setLoggingTemplateId(template.id);
+    const macros: MacroSnapshot = {
+      calories: template.calories,
+      protein: template.protein,
+      carbs: template.carbs,
+      fat: template.fat,
+    };
     try {
-      const res = await fetch(`/api/meal-templates/${quickLogTemplate.id}/log`, {
+      const res = await fetch(`/api/meal-templates/${template.id}/log`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          date: new Date().toISOString().split("T")[0],
-          mealType: payload.mealType,
-          servings: payload.servings,
-          macros: payload.macros,
+          date: toLocalDateKey(new Date()),
+          mealType,
+          servings: 1,
+          macros,
         }),
       });
       if (!res.ok) {
         toast.error("Could not log meal.");
-        return false;
+        return;
       }
       const entry = (await res.json()) as MealEntryType;
       handleLogged(
         {
           ...entry,
           date: String(entry.date),
-          totalCarbs: entry.totalCarbs ?? payload.macros.carbs,
-          totalFat: entry.totalFat ?? payload.macros.fat,
+          totalCarbs: entry.totalCarbs ?? macros.carbs,
+          totalFat: entry.totalFat ?? macros.fat,
         },
-        payload.macros,
-        quickLogTemplate.id,
+        macros,
+        template.id,
       );
-      setQuickLogTemplate(null);
-      return true;
     } catch {
       toast.error("Could not log meal.");
-      return false;
+    } finally {
+      setLoggingTemplateId(null);
     }
   }
 
@@ -242,13 +244,14 @@ export function MealsClient({
               <button
                 key={template.id}
                 type="button"
-                onClick={() => setQuickLogTemplate(template)}
-                className="premium-card rounded-xl p-3 text-left transition-transform active:scale-[0.98]"
+                disabled={Boolean(loggingTemplateId)}
+                onClick={() => void logTemplateDirect(template)}
+                className="premium-card rounded-xl p-3 text-left transition-transform active:scale-[0.98] disabled:opacity-60"
               >
                 <p className="text-sm font-semibold text-[var(--white)]">{template.name}</p>
                 <p className="mt-1 text-lg font-bold text-[#BEFF47]">{template.calories} kcal</p>
                 <p className="mt-0.5 text-[10px] text-[var(--muted)]">
-                  P {template.protein}g · C {template.carbs}g · F {template.fat}g
+                  P {template.protein}g · C {template.carbs}g · F {template.fat}g · tap to log
                 </p>
               </button>
             ))}
@@ -290,17 +293,9 @@ export function MealsClient({
         open={addMealOpen}
         onClose={() => setAddMealOpen(false)}
         templates={templates}
-        onLogged={(entry, macros) => handleLogged(entry, macros)}
+        onLogged={(entry, macros, templateId) => handleLogged(entry, macros, templateId)}
         onTemplatesChange={setTemplates}
         initialMealType={mealType}
-      />
-
-      <TemplateLogSheet
-        open={Boolean(quickLogTemplate)}
-        template={quickLogTemplate}
-        mealType={mealType}
-        onClose={() => setQuickLogTemplate(null)}
-        onLog={logFromSheet}
       />
     </div>
   );

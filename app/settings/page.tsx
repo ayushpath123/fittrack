@@ -5,6 +5,7 @@ import { Bell, Download, Upload } from "lucide-react";
 import { SettingsAppearance } from "@/components/SettingsAppearance";
 import { LeaderboardIdentityCard } from "@/components/LeaderboardIdentityCard";
 import { SignOutButton } from "@/components/SignOutButton";
+import { numberToInputValue, parseIntegerInput, sanitizeNumericInput } from "@/lib/numeric-input";
 
 const inputFieldClass =
   "w-full rounded-xl border border-white/12 bg-white/[0.05] px-3.5 py-2.5 text-sm text-[var(--white)] transition-all placeholder:text-[var(--hint)] focus:border-[#BEFF47]/40 focus:bg-white/[0.07] focus:outline-none focus:ring-2 focus:ring-[#BEFF47]/15";
@@ -19,11 +20,11 @@ function toLocalIndianDigits(raw: string): string {
 }
 
 export default function SettingsPage() {
-  const [calorieTarget, setCalorieTarget] = useState(1500);
-  const [proteinTarget, setProteinTarget] = useState(110);
-  const [carbTarget, setCarbTarget] = useState(180);
-  const [fatTarget, setFatTarget] = useState(55);
-  const [waterTargetMl, setWaterTargetMl] = useState(2000);
+  const [calorieTarget, setCalorieTarget] = useState("");
+  const [proteinTarget, setProteinTarget] = useState("");
+  const [carbTarget, setCarbTarget] = useState("");
+  const [fatTarget, setFatTarget] = useState("");
+  const [waterTargetMl, setWaterTargetMl] = useState("");
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState("09:00");
   const [notifSupport, setNotifSupport] = useState(false);
@@ -53,11 +54,11 @@ export default function SettingsPage() {
   const load = useCallback(async () => {
     const res = await fetch("/api/settings/goals", { credentials: "include" });
     const data = await res.json();
-    setCalorieTarget(data.calorieTarget ?? 1500);
-    setProteinTarget(data.proteinTarget ?? 110);
-    setCarbTarget(data.carbTarget ?? 180);
-    setFatTarget(data.fatTarget ?? 55);
-    setWaterTargetMl(data.waterTargetMl ?? 2000);
+    setCalorieTarget(numberToInputValue(data.calorieTarget ?? 1500) || "1500");
+    setProteinTarget(numberToInputValue(data.proteinTarget ?? 110) || "110");
+    setCarbTarget(numberToInputValue(data.carbTarget ?? 180) || "180");
+    setFatTarget(numberToInputValue(data.fatTarget ?? 55) || "55");
+    setWaterTargetMl(numberToInputValue(data.waterTargetMl ?? 2000) || "2000");
     setReminderEnabled(!!data.reminderEnabled);
     setReminderTime(typeof data.reminderTime === "string" ? data.reminderTime : "09:00");
   }, []);
@@ -122,11 +123,11 @@ export default function SettingsPage() {
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({
-        calorieTarget,
-        proteinTarget,
-        carbTarget,
-        fatTarget,
-        waterTargetMl,
+        calorieTarget: parseIntegerInput(calorieTarget),
+        proteinTarget: parseIntegerInput(proteinTarget),
+        carbTarget: parseIntegerInput(carbTarget),
+        fatTarget: parseIntegerInput(fatTarget),
+        waterTargetMl: parseIntegerInput(waterTargetMl),
         reminderEnabled,
         reminderTime,
       }),
@@ -424,45 +425,50 @@ export default function SettingsPage() {
         <div>
           <p className={labelClass}>Calorie target</p>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             value={calorieTarget}
-            onChange={(e) => setCalorieTarget(parseInt(e.target.value || "0", 10))}
+            onChange={(e) => setCalorieTarget(sanitizeNumericInput(e.target.value))}
             className={inputFieldClass}
           />
         </div>
         <div>
           <p className={labelClass}>Protein target (g)</p>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             value={proteinTarget}
-            onChange={(e) => setProteinTarget(parseInt(e.target.value || "0", 10))}
+            onChange={(e) => setProteinTarget(sanitizeNumericInput(e.target.value))}
             className={inputFieldClass}
           />
         </div>
         <div>
           <p className={labelClass}>Carbs target (g)</p>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             value={carbTarget}
-            onChange={(e) => setCarbTarget(parseInt(e.target.value || "0", 10))}
+            onChange={(e) => setCarbTarget(sanitizeNumericInput(e.target.value))}
             className={inputFieldClass}
           />
         </div>
         <div>
           <p className={labelClass}>Fat target (g)</p>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             value={fatTarget}
-            onChange={(e) => setFatTarget(parseInt(e.target.value || "0", 10))}
+            onChange={(e) => setFatTarget(sanitizeNumericInput(e.target.value))}
             className={inputFieldClass}
           />
         </div>
         <div>
           <p className={labelClass}>Water goal (ml / day)</p>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             value={waterTargetMl}
-            onChange={(e) => setWaterTargetMl(parseInt(e.target.value || "0", 10))}
+            onChange={(e) => setWaterTargetMl(sanitizeNumericInput(e.target.value))}
             className={inputFieldClass}
           />
         </div>

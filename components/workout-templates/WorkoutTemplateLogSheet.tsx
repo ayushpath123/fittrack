@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/meal-templates/BottomSheet";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { sanitizeNumericInput } from "@/lib/numeric-input";
 import type { WorkoutTemplateType } from "@/types/workout";
 
 type WorkoutTemplateLogSheetProps = {
@@ -57,20 +58,18 @@ export function WorkoutTemplateLogSheet({ open, template, onClose, onLog }: Work
         <Input
           label="Duration (min)"
           tone="glass"
-          type="number"
+          type="text"
           inputMode="numeric"
-          min={1}
           value={duration}
-          onChange={(e) => setDuration(e.target.value)}
+          onChange={(e) => setDuration(sanitizeNumericInput(e.target.value))}
         />
         <Input
           label="Calories (kcal)"
           tone="glass"
-          type="number"
+          type="text"
           inputMode="numeric"
-          min={0}
           value={calories}
-          onChange={(e) => setCalories(e.target.value)}
+          onChange={(e) => setCalories(sanitizeNumericInput(e.target.value))}
         />
       </div>
 

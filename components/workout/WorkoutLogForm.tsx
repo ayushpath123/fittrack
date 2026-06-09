@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { WorkoutTypeSelect } from "@/components/workout/WorkoutTypeSelect";
+import { sanitizeNumericInput } from "@/lib/numeric-input";
 import type { WorkoutLogType, WorkoutTemplateType, WorkoutTypeKind } from "@/types/workout";
 
 export type WorkoutFormValues = {
@@ -110,23 +111,21 @@ export function WorkoutLogForm({
         <Input
           label="Duration (min)"
           tone="glass"
-          type="number"
+          type="text"
           inputMode="numeric"
-          min={1}
           placeholder="45"
           value={form.duration}
-          onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
+          onChange={(e) => setForm((f) => ({ ...f, duration: sanitizeNumericInput(e.target.value) }))}
           error={errors.duration}
         />
         <Input
           label="Calories Burned"
           tone="glass"
-          type="number"
+          type="text"
           inputMode="numeric"
-          min={0}
           placeholder="300"
           value={form.caloriesBurned}
-          onChange={(e) => setForm((f) => ({ ...f, caloriesBurned: e.target.value }))}
+          onChange={(e) => setForm((f) => ({ ...f, caloriesBurned: sanitizeNumericInput(e.target.value) }))}
           error={errors.caloriesBurned}
         />
       </div>
