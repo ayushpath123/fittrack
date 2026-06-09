@@ -13,6 +13,7 @@ export const AI_CONFIG = {
     nudge: 120,
     coach: 450,
     weeklyReport: 700,
+    voice: 1200,
   },
   limits: {
     analyzeMealPerDay: 10,
@@ -20,5 +21,7 @@ export const AI_CONFIG = {
     coachPerMonth: 30,
     insightPerDay: 8,
     weeklyReportPerDay: 1,
+    voicePerDay: 30,
+    voicePerMonth: 200,
   },
 } as const;

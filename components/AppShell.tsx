@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
 import { MeshBackground } from "@/components/MeshBackground";
 import { Sidebars } from "@/components/Sidebars";
+import { VoiceProvider } from "@/components/voice/VoiceLayer";
 
 /** Full-bleed routes: no app header, bottom nav, or page-screen wrapper */
 const FULL_BLEED_ROUTES = new Set([
@@ -31,7 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <>
+    <VoiceProvider>
       <Sidebars />
       <div className="pointer-events-none fixed bottom-[var(--app-bottom-nav-h)] left-0 right-0 z-30 h-12 bg-gradient-to-t from-[#090b12] via-[#090b12]/85 to-transparent" />
       <main className="mx-auto max-w-md px-3.5 pb-[calc(var(--app-bottom-nav-h)+0.95rem)] pt-[calc(var(--app-header-h)+0.55rem)]">
@@ -41,6 +42,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
       <BottomNav />
-    </>
+    </VoiceProvider>
   );
 }

@@ -49,5 +49,8 @@ export const config = {
     "/api/food/:path*",
     "/api/food/from-barcode",
     "/api/ai/:path*",
+    "/api/voice/:path*",
+    "/api/billing/status",
+    "/api/coach",
   ],
 };

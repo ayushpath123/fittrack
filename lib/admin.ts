@@ -1,6 +1,6 @@
 import { getAuthSession } from "@/lib/auth";
 
-function getAdminEmails(): Set<string> {
+export function getAdminEmails(): Set<string> {
   const raw = process.env.ADMIN_EMAILS ?? "";
   return new Set(
     raw

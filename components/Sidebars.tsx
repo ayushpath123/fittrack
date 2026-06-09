@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AppBrand } from "@/components/AppBrand";
+import { VoiceHoldButton } from "@/components/voice/VoiceHoldButton";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { logout } from "@/lib/auth-client";
@@ -108,7 +109,8 @@ export function Sidebars() {
           <div className="min-w-0">
             <AppBrand href="/dashboard" />
           </div>
-          <div className="flex items-center gap-2 min-w-0 shrink-0">
+          <div className="flex items-center gap-1.5 min-w-0 shrink-0">
+            <VoiceHoldButton />
             <Link
               href="/meals/ai"
               aria-label="AI meal scan"

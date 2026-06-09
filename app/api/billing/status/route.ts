@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
       where: { id: userId },
       select: {
         plan: true,
+        email: true,
         subscriptionStatus: true,
         subscriptionCurrentPeriodEnd: true,
         stripeCustomerId: true,

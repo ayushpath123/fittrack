@@ -18,12 +18,63 @@ const MEAL_TYPE_ALIASES: Record<string, MealType> = {
   dinner: "dinner",
   "pre-workout": "snack",
   "post-workout": "snack",
+  nashta: "breakfast",
+  subah: "breakfast",
+  dopahar: "lunch",
+  raat: "dinner",
+  shaam: "dinner",
 };
 
-export function normalizeMealType(value?: string | null): MealType {
-  if (!value) return "lunch";
+/** Longer phrases first so "raat ka khana" wins over "raat". */
+const MEAL_TYPE_PHRASES: Array<{ phrase: string; type: MealType }> = [
+  { phrase: "raat ka khana", type: "dinner" },
+  { phrase: "shaam ka khana", type: "dinner" },
+  { phrase: "subah ka nashta", type: "breakfast" },
+  { phrase: "for breakfast", type: "breakfast" },
+  { phrase: "for lunch", type: "lunch" },
+  { phrase: "for dinner", type: "dinner" },
+  { phrase: "for snack", type: "snack" },
+  { phrase: "my breakfast", type: "breakfast" },
+  { phrase: "my lunch", type: "lunch" },
+  { phrase: "my dinner", type: "dinner" },
+  { phrase: "breakfast", type: "breakfast" },
+  { phrase: "lunch", type: "lunch" },
+  { phrase: "dinner", type: "dinner" },
+  { phrase: "snack", type: "snack" },
+  { phrase: "nashta", type: "breakfast" },
+  { phrase: "dopahar", type: "lunch" },
+  { phrase: "shaam", type: "dinner" },
+  { phrase: "raat", type: "dinner" },
+];
+
+export function parseMealType(value?: string | null): MealType | undefined {
+  if (!value?.trim()) return undefined;
   const key = value.trim().toLowerCase();
-  return MEAL_TYPE_ALIASES[key] ?? (MEAL_TYPES.includes(key as MealType) ? (key as MealType) : "lunch");
+  if (MEAL_TYPE_ALIASES[key]) return MEAL_TYPE_ALIASES[key];
+  return MEAL_TYPES.includes(key as MealType) ? (key as MealType) : undefined;
+}
+
+export function normalizeMealType(value?: string | null): MealType {
+  return parseMealType(value) ?? "lunch";
+}
+
+/** Detect meal slot from spoken text (English / Hinglish). */
+export function detectMealTypeFromText(text: string): MealType | undefined {
+  const lower = text.toLowerCase();
+  for (const { phrase, type } of MEAL_TYPE_PHRASES) {
+    if (lower.includes(phrase)) return type;
+  }
+  return undefined;
+}
+
+/** Remove meal-slot words so food search focuses on the item name. */
+export function stripMealTypePhrases(text: string): string {
+  let result = text;
+  for (const { phrase } of MEAL_TYPE_PHRASES) {
+    const re = new RegExp(`\\b${phrase.replace(/\s+/g, "\\s+")}\\b`, "gi");
+    result = result.replace(re, " ");
+  }
+  return result.replace(/\s+/g, " ").trim();
 }
 
 export function labelMealType(value: string): string {
