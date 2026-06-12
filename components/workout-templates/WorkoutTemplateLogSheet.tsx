@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { BottomSheet } from "@/components/meal-templates/BottomSheet";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -23,14 +23,20 @@ export function WorkoutTemplateLogSheet({ open, template, onClose, onLog }: Work
   const [saveDefaults, setSaveDefaults] = useState(false);
   const [logging, setLogging] = useState(false);
 
-  const templateId = template?.id;
-
-  useEffect(() => {
-    if (!open || !template) return;
-    setDuration(String(template.duration));
-    setCalories(String(template.caloriesBurned));
-    setSaveDefaults(false);
-  }, [open, templateId, template]);
+  // Seed inputs when the sheet (re)opens or switches template (render-time
+  // adjustment instead of a cascading effect).
+  const [prevSheet, setPrevSheet] = useState<{ open: boolean; template: WorkoutTemplateType | null }>({
+    open: false,
+    template: null,
+  });
+  if (prevSheet.open !== open || prevSheet.template !== template) {
+    setPrevSheet({ open, template });
+    if (open && template) {
+      setDuration(String(template.duration));
+      setCalories(String(template.caloriesBurned));
+      setSaveDefaults(false);
+    }
+  }
 
   async function handleLog() {
     if (!template) return;

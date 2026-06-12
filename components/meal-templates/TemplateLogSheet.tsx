@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { BottomSheet } from "@/components/meal-templates/BottomSheet";
 import { MacroDisplay } from "@/components/meal-templates/MacroDisplay";
@@ -50,14 +50,28 @@ export function TemplateLogSheet({ open, template, mealType, onClose, onLog }: T
 
   const displayMacros = editing && customMacros ? customMacros : scaledMacros;
 
-  useEffect(() => {
-    if (!open) return;
-    setServings(1);
-    setEditing(false);
-    setCustomMacros(null);
-  }, [open, template?.id]);
+  // Reset when the sheet (re)opens or switches template, and seed the editable
+  // fields when edit mode turns on — both as render-time state adjustments.
+  const templateId = template?.id ?? null;
+  const [prevSheet, setPrevSheet] = useState<{ open: boolean; templateId: string | null }>({
+    open: false,
+    templateId: null,
+  });
+  if (prevSheet.open !== open || prevSheet.templateId !== templateId) {
+    setPrevSheet({ open, templateId });
+    if (open) {
+      setServings(1);
+      setEditing(false);
+      setCustomMacros(null);
+    }
+  }
 
-  useEffect(() => {
+  const [prevEdit, setPrevEdit] = useState<{ editing: boolean; scaledMacros: MacroSnapshot }>({
+    editing: false,
+    scaledMacros,
+  });
+  if (prevEdit.editing !== editing || prevEdit.scaledMacros !== scaledMacros) {
+    setPrevEdit({ editing, scaledMacros });
     if (editing) {
       setCustomMacros(scaledMacros);
       setMacroFields({
@@ -67,7 +81,7 @@ export function TemplateLogSheet({ open, template, mealType, onClose, onLog }: T
         fat: numberToInputValue(scaledMacros.fat),
       });
     }
-  }, [editing, scaledMacros]);
+  }
 
   function adjustServings(delta: number) {
     setServings((prev) => {

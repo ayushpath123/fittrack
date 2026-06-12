@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useHydrated } from "@/hooks/useHydrated";
 
 const TIMESLICE_MS = 250;
 
@@ -14,17 +15,14 @@ function pickMimeType(): string {
 }
 
 export function useAudioRecorder() {
+  const hydrated = useHydrated();
   const [recording, setRecording] = useState(false);
-  const [supported, setSupported] = useState(false);
+  const supported = hydrated && typeof MediaRecorder !== "undefined" && !!pickMimeType();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const mimeTypeRef = useRef("audio/webm");
   const startedAtRef = useRef(0);
-
-  useEffect(() => {
-    setSupported(typeof MediaRecorder !== "undefined" && !!pickMimeType());
-  }, []);
 
   const releaseStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -76,7 +74,6 @@ export function useAudioRecorder() {
       recorder.start(TIMESLICE_MS);
       startedAtRef.current = Date.now();
       setRecording(true);
-      setSupported(true);
       return { ok: true };
     } catch (err) {
       releaseStream();

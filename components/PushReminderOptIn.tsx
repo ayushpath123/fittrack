@@ -1,30 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bell } from "lucide-react";
 import Link from "next/link";
+import { useHydrated } from "@/hooks/useHydrated";
+import { track } from "@/lib/analytics-client";
 
 export function PushReminderOptIn() {
-  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
-  const [dismissed, setDismissed] = useState(false);
+  const hydrated = useHydrated();
+  // Only set by user actions; the browser state is derived during render.
+  const [permissionOverride, setPermissionOverride] = useState<NotificationPermission | null>(null);
+  const [dismissedNow, setDismissedNow] = useState(false);
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) {
-      setPermission("unsupported");
-      return;
-    }
-    setPermission(Notification.permission);
-    if (window.localStorage.getItem("fittrack-push-banner-dismissed") === "1") {
-      setDismissed(true);
-    }
-  }, []);
+  const permission: NotificationPermission | "unsupported" =
+    permissionOverride ??
+    (!hydrated ? "default" : !("Notification" in window) ? "unsupported" : Notification.permission);
+  const dismissed =
+    dismissedNow || (hydrated && window.localStorage.getItem("fittrack-push-banner-dismissed") === "1");
 
   if (permission === "unsupported" || permission === "granted" || dismissed) return null;
 
   async function enable() {
     if (!("Notification" in window)) return;
     const result = await Notification.requestPermission();
-    setPermission(result);
+    setPermissionOverride(result);
+    track(result === "granted" ? "notification_granted" : "notification_denied");
     if (result === "granted") {
       try {
         const getRes = await fetch("/api/settings/goals", { credentials: "include", cache: "no-store" });
@@ -54,7 +54,7 @@ export function PushReminderOptIn() {
       } catch {
         /* ignore — user can enable in Settings */
       }
-      setDismissed(true);
+      setDismissedNow(true);
     }
   }
 
@@ -77,7 +77,7 @@ export function PushReminderOptIn() {
               type="button"
               onClick={() => {
                 window.localStorage.setItem("fittrack-push-banner-dismissed", "1");
-                setDismissed(true);
+                setDismissedNow(true);
               }}
               className="rounded-lg border border-white/12 px-3 py-1.5 text-[10px] text-[var(--muted)]"
             >

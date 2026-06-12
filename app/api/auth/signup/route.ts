@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signupApiSchema } from "@/lib/validations/auth";
 import { normalizePhone } from "@/lib/otp";
+import { trackEvent } from "@/lib/analytics";
 
 export async function POST(request: Request) {
   try {
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
       },
     });
 
+    trackEvent("signup", { userId: user.id, meta: { method: "credentials" } });
     return NextResponse.json(
       {
         message: "Account created successfully.",

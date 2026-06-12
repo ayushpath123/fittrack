@@ -7,6 +7,7 @@ import {
 } from "@/lib/domain/workout-logs";
 import { ensureDefaultWorkoutTemplates } from "@/lib/default-workout-templates";
 import { workoutLogPayloadSchema } from "@/lib/validators";
+import { trackEvent } from "@/lib/analytics";
 
 export async function GET(req: NextRequest) {
   const userId = await requireUserIdFromRequest(req);
@@ -42,5 +43,6 @@ export async function POST(req: NextRequest) {
     ...parsed.data,
   });
 
+  trackEvent("workout_logged", { userId, meta: { workoutType: parsed.data.workoutType } });
   return NextResponse.json(log);
 }

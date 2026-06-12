@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   workoutLogFindMany: vi.fn(),
   workoutLogCreate: vi.fn(),
   workoutTemplateCount: vi.fn(),
+  workoutTemplateFindMany: vi.fn(),
   workoutTemplateCreateMany: vi.fn(),
   workoutTemplateUpsert: vi.fn(),
   workoutTemplateUpdateMany: vi.fn(),
@@ -45,6 +46,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     workoutTemplate: {
       count: mocks.workoutTemplateCount,
+      findMany: mocks.workoutTemplateFindMany,
       createMany: mocks.workoutTemplateCreateMany,
       upsert: mocks.workoutTemplateUpsert,
       updateMany: mocks.workoutTemplateUpdateMany,
@@ -56,6 +58,9 @@ vi.mock("@/lib/prisma", () => ({
     goalSetting: {
       findUnique: mocks.goalsFindUnique,
       upsert: mocks.goalsUpsert,
+    },
+    analyticsEvent: {
+      create: vi.fn().mockResolvedValue({ id: "evt-1" }),
     },
   },
 }));
@@ -89,6 +94,7 @@ describe("api contract tests", () => {
       updatedAt: new Date("2026-05-01T10:00:00Z"),
     });
     mocks.workoutTemplateCount.mockResolvedValue(1);
+    mocks.workoutTemplateFindMany.mockResolvedValue([]);
     mocks.workoutTemplateCreateMany.mockResolvedValue({ count: 0 });
     mocks.workoutTemplateUpsert.mockResolvedValue({ id: "wtpl-1" });
     mocks.workoutTemplateUpdateMany.mockResolvedValue({ count: 1 });

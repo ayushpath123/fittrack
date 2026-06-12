@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useHydrated } from "@/hooks/useHydrated";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { MEAL_TYPES, labelMealType } from "@/lib/meal-templates";
@@ -47,30 +48,35 @@ export function MealTemplateFormModal({
   initial,
   defaultMealType = "breakfast",
 }: MealTemplateFormModalProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [name, setName] = useState("");
   const [mealType, setMealType] = useState<MealType>("breakfast");
   const [macros, setMacros] = useState<MacroFields>(emptyMacros);
   const [errors, setErrors] = useState<Partial<Record<keyof MealTemplateInput, string>>>({});
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    if (initial) {
-      setName(initial.name);
-      setMealType(initial.mealType);
-      setMacros(macrosFromValues(initial));
-    } else {
-      setName("");
-      setMealType(defaultMealType);
-      setMacros(emptyMacros);
+  // Reset the form whenever the modal (re)opens or targets a different
+  // template (render-time adjustment instead of a cascading effect).
+  const [prevForm, setPrevForm] = useState<{
+    open: boolean;
+    initial: MealTemplate | null | undefined;
+    defaultMealType: MealType;
+  }>({ open: false, initial: undefined, defaultMealType });
+  if (prevForm.open !== open || prevForm.initial !== initial || prevForm.defaultMealType !== defaultMealType) {
+    setPrevForm({ open, initial, defaultMealType });
+    if (open) {
+      if (initial) {
+        setName(initial.name);
+        setMealType(initial.mealType);
+        setMacros(macrosFromValues(initial));
+      } else {
+        setName("");
+        setMealType(defaultMealType);
+        setMacros(emptyMacros);
+      }
+      setErrors({});
     }
-    setErrors({});
-  }, [open, initial, defaultMealType]);
+  }
 
   useEffect(() => {
     if (!open) return;

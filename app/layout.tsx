@@ -3,6 +3,7 @@ import { DM_Sans, Syne } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { AppShell } from "@/components/AppShell";
+import { appOrigin } from "@/lib/stripe";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -17,21 +18,29 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "FitTrack",
-  description: "Personal fitness tracker",
+  metadataBase: new URL(appOrigin()),
+  title: "FitTrack — Meals, workouts & habits",
+  description:
+    "Track nutrition, training, weight, and water in one place — with AI meal photo estimates and an agentic coach.",
+  applicationName: "FitTrack",
   manifest: "/manifest.json",
+  openGraph: {
+    type: "website",
+    siteName: "FitTrack",
+    title: "FitTrack — Meals, workouts & habits",
+    description:
+      "Track nutrition, training, weight, and water in one place — with AI meal photo estimates and an agentic coach.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FitTrack — Meals, workouts & habits",
+    description: "Track nutrition, training, weight, and water in one place.",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${syne.variable} ${dmSans.variable} dark`} suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var m=localStorage.getItem('fittrack-theme')||'system';var d=m==='dark'||(m!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})();`,
-          }}
-        />
-      </head>
+    <html lang="en" className={`${syne.variable} ${dmSans.variable} dark`}>
       <body
         className={`${dmSans.className} min-h-screen bg-[var(--bg)] text-[var(--white)] antialiased`}
       >

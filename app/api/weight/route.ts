@@ -3,6 +3,7 @@ import { requireUserIdFromRequest } from "@/lib/auth";
 import { listWeightLogs, upsertWeightLog } from "@/lib/domain/tracking";
 import { serializeWeightLog } from "@/lib/weight-serialize";
 import { weightPayloadSchema } from "@/lib/validators";
+import { trackEvent } from "@/lib/analytics";
 
 export async function GET(req: NextRequest) {
   const userId = await requireUserIdFromRequest(req);
@@ -19,5 +20,6 @@ export async function POST(req: NextRequest) {
   }
   const { date, weight, waistCm } = parsed.data;
   const log = await upsertWeightLog({ userId, date, weight, waistCm });
+  trackEvent("weight_logged", { userId });
   return NextResponse.json(serializeWeightLog(log));
 }

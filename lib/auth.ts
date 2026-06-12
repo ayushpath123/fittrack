@@ -7,6 +7,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { compare, hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { trackEvent } from "@/lib/analytics";
 import { loginSchema, phoneLoginSchema } from "@/lib/validations/auth";
 import { normalizePhone, verifyOtp } from "@/lib/otp";
 
@@ -35,6 +36,10 @@ async function prismaUserIdForGoogleProfile(profile: unknown, emailFallback: str
     },
     update: {},
   });
+  // Upsert can't report created-vs-found; a row created moments ago means this sign-in registered it.
+  if (Date.now() - dbUser.createdAt.getTime() < 15_000) {
+    trackEvent("signup", { userId: dbUser.id, meta: { method: "google" } });
+  }
   return dbUser.id;
 }
 

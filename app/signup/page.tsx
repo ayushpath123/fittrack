@@ -145,7 +145,19 @@ function SignupForm() {
           </form>
         </AuthCard>
 
-        <p className="mt-6 text-center text-sm text-zinc-400">
+        <p className="mt-4 text-center text-xs leading-relaxed text-zinc-500">
+          By creating an account, you agree to the{" "}
+          <Link href="/terms" className="text-zinc-400 underline hover:text-zinc-300">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="text-zinc-400 underline hover:text-zinc-300">
+            Privacy Policy
+          </Link>
+          .
+        </p>
+
+        <p className="mt-4 text-center text-sm text-zinc-400">
           Already have an account?{" "}
           <Link href="/login" className="font-semibold text-[#B8E86A] hover:text-[#BEFF47]">
             Sign in

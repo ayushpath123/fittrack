@@ -60,6 +60,8 @@ export type DashboardPayload = {
     badges: string[];
     level: number;
     rank: string;
+    xp: number;
+    weeklyConsistencyPct: number;
     weeklyGoalProgress: number;
     weeklyGoalTarget: number;
     xpEarnedToday: number;

@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, Loader2, Sparkles } from "lucide-react";
 import { AppBrand } from "@/components/AppBrand";
+import { track } from "@/lib/analytics-client";
 
 type RazorpayCheckoutOptions = {
   key: string;
@@ -32,8 +33,21 @@ function PricingPageContent() {
   const [error, setError] = useState("");
   const [hasPro, setHasPro] = useState<boolean | null>(null);
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
+  const [price, setPrice] = useState<string | null>(null);
+  const [priceLoading, setPriceLoading] = useState(true);
   const autoStartedRef = useRef(false);
   const verifyRedirectedRef = useRef(false);
+
+  useEffect(() => {
+    track("pricing_viewed");
+    void fetch("/api/billing/plan")
+      .then(async (r) => {
+        const d = (await r.json()) as { configured?: boolean; display?: string | null };
+        if (r.ok && d.configured && d.display) setPrice(d.display);
+      })
+      .catch(() => {})
+      .finally(() => setPriceLoading(false));
+  }, []);
 
   useEffect(() => {
     void fetch("/api/billing/status", { credentials: "include" })
@@ -179,11 +193,27 @@ function PricingPageContent() {
         <div className="premium-card rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5 sm:p-6">
           <div className="mb-2 inline-flex items-center gap-1 rounded-full border border-[rgba(190,255,71,.35)] bg-[rgba(190,255,71,.15)] px-2 py-1 text-[10px] font-semibold text-[#B8E86A]">
             <Sparkles size={11} />
-            Healthify Pro
+            FitTrack Pro
           </div>
           <h1 className="num text-2xl font-bold text-[var(--white)]">Unlock AI features</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
             Pro covers AI usage (Gemini) for meal photo estimates and the agentic coach—tied to your account only.
+          </p>
+
+          <div className="mt-4 flex h-9 items-baseline gap-2">
+            {price ? (
+              <>
+                <span className="num text-3xl font-bold text-[var(--white)]">{price.split("/")[0]}</span>
+                {price.includes("/") ? (
+                  <span className="text-sm text-[var(--muted)]">/{price.split("/").slice(1).join("/")}</span>
+                ) : null}
+              </>
+            ) : priceLoading ? (
+              <span className="inline-block h-8 w-36 animate-pulse self-center rounded-lg bg-white/[0.08]" aria-hidden />
+            ) : null}
+          </div>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Cancel anytime from Settings — you keep Pro until the end of the billing period.
           </p>
 
           <ul className="mt-4 space-y-2 text-sm text-[var(--white)]">
@@ -234,13 +264,43 @@ function PricingPageContent() {
                   <p className="text-xs text-[#FF5C7A]">{error}</p>
                 </div>
               ) : null}
+
+              {!hasPro ? (
+                <p className="mt-3 text-[11px] leading-relaxed text-white/40">
+                  By subscribing, you authorise recurring {price ?? "subscription"} charges via Razorpay until you
+                  cancel, and agree to our{" "}
+                  <Link href="/terms" className="text-white/60 underline hover:text-white/80">
+                    Terms
+                  </Link>
+                  ,{" "}
+                  <Link href="/privacy" className="text-white/60 underline hover:text-white/80">
+                    Privacy Policy
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/refunds" className="text-white/60 underline hover:text-white/80">
+                    Refund Policy
+                  </Link>
+                  . Cancel anytime from Settings → Subscription.
+                </p>
+              ) : null}
             </>
           )}
         </div>
       </main>
 
       <footer className="relative z-10 border-t border-white/[0.08] py-6 text-center text-[11px] text-white/30">
-        <p>© {new Date().getFullYear()} FitTrack</p>
+        <div className="flex items-center justify-center gap-4">
+          <Link href="/terms" className="transition-colors hover:text-white/60">
+            Terms
+          </Link>
+          <Link href="/privacy" className="transition-colors hover:text-white/60">
+            Privacy
+          </Link>
+          <Link href="/refunds" className="transition-colors hover:text-white/60">
+            Refunds
+          </Link>
+        </div>
+        <p className="mt-3">© {new Date().getFullYear()} FitTrack</p>
       </footer>
     </div>
   );

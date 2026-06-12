@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestAuditMeta, GamificationHttpError, useXpBoostMutation } from "@/lib/gamification-server";
+import { getRequestAuditMeta, GamificationHttpError, applyXpBoostMutation } from "@/lib/gamification-server";
 import { gamificationErrorResponse, requireGamificationUserId } from "../_http";
 
 export async function POST(req: Request) {
@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
 
   try {
-    const summary = await useXpBoostMutation(auth.userId, getRequestAuditMeta(req));
+    const summary = await applyXpBoostMutation(auth.userId, getRequestAuditMeta(req));
     return NextResponse.json(summary);
   } catch (e) {
     if (e instanceof GamificationHttpError && e.statusCode === 403) {

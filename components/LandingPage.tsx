@@ -4,6 +4,9 @@ import {
   Activity,
   ArrowRight,
   Check,
+  Droplets,
+  Flame,
+  Plus,
   Smartphone,
   Target,
   Utensils,
@@ -52,8 +55,14 @@ export function LandingPage() {
           <AppBrand href="/" />
           <div className="flex items-center gap-1">
             <Link
+              href="/pricing"
+              className="rounded-xl px-3 py-2 text-xs font-medium text-white/50 transition-colors hover:text-white/90"
+            >
+              Pricing
+            </Link>
+            <Link
               href="/login"
-              className="rounded-xl px-3.5 py-2 text-xs font-medium text-white/50 transition-colors hover:text-white/90"
+              className="rounded-xl px-3 py-2 text-xs font-medium text-white/50 transition-colors hover:text-white/90"
             >
               Log in
             </Link>
@@ -127,6 +136,84 @@ export function LandingPage() {
               </div>
             ))}
           </div>
+
+          <div className="relative mx-auto mt-16 w-[264px]" aria-hidden>
+            <div className="absolute -inset-10 rounded-full bg-[#BEFF47]/[0.07] blur-3xl" />
+            <div className="absolute -inset-10 translate-x-10 translate-y-6 rounded-full bg-[#4A7EFF]/[0.06] blur-3xl" />
+            <div className="relative rounded-[2.75rem] border border-white/12 bg-[#0B0C13] p-2 shadow-[0_30px_80px_-24px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <div className="overflow-hidden rounded-[2.25rem] border border-white/[0.06] bg-[#0D0F18] px-4 pb-5 pt-3 text-left">
+                <div className="mx-auto mb-4 h-[18px] w-24 rounded-full border border-white/[0.05] bg-black/80" />
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] text-white/35">Good morning</p>
+                    <p className="text-[13px] font-semibold text-white">Today</p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[#FF9F45]/30 bg-[#FF9F45]/10 px-2 py-1 text-[9px] font-semibold text-[#FFB86B]">
+                    <Flame className="h-2.5 w-2.5" />
+                    7-day streak
+                  </span>
+                </div>
+
+                <div className="mt-3 flex items-center gap-3.5 rounded-2xl border border-white/[0.07] bg-white/[0.04] p-3">
+                  <div
+                    className="relative h-[72px] w-[72px] shrink-0 rounded-full"
+                    style={{ background: "conic-gradient(#BEFF47 230deg, rgba(255,255,255,0.07) 230deg 360deg)" }}
+                  >
+                    <div className="absolute inset-[6px] flex flex-col items-center justify-center rounded-full bg-[#11131D]">
+                      <span className="num text-base font-bold leading-none text-white">720</span>
+                      <span className="mt-0.5 text-[8px] text-white/40">kcal left</span>
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    {[
+                      { label: "Protein", val: "96/140g", pct: 69, color: "#BEFF47" },
+                      { label: "Carbs", val: "150/220g", pct: 68, color: "#4A7EFF" },
+                      { label: "Fat", val: "38/60g", pct: 63, color: "#A78BFA" },
+                    ].map(({ label, val, pct, color }) => (
+                      <div key={label}>
+                        <div className="flex items-center justify-between text-[8.5px]">
+                          <span className="text-white/45">{label}</span>
+                          <span className="num text-white/60">{val}</span>
+                        </div>
+                        <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-white/[0.07]">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-2.5 flex items-center justify-between rounded-2xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5">
+                  <span className="inline-flex items-center gap-1.5 text-[10px] text-white/50">
+                    <Droplets className="h-3 w-3 text-[#4AC7FF]" />
+                    Water
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <span
+                        key={i}
+                        className={`h-1.5 w-1.5 rounded-full ${i < 5 ? "bg-[#4AC7FF]" : "bg-white/[0.1]"}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-2.5 grid grid-cols-2 gap-2">
+                  {["Breakfast", "Lunch"].map((meal) => (
+                    <span
+                      key={meal}
+                      className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#BEFF47]/25 bg-[#BEFF47]/[0.08] py-2 text-[10px] font-semibold text-[#C9F36E]"
+                    >
+                      <Plus className="h-3 w-3" />
+                      {meal}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          <p className="mt-5 text-[11px] text-white/30">Your day at a glance — calories left, macros, water, one-tap logs.</p>
         </section>
 
         <div className="my-20 flex items-center gap-4">
@@ -208,7 +295,19 @@ export function LandingPage() {
       <footer className="relative z-10 border-t border-white/[0.06] py-8 text-center text-[11px] text-white/22">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4">
           <p>© {new Date().getFullYear()} FitTrack</p>
-          <div className="flex gap-5">
+          <div className="flex flex-wrap gap-5">
+            <Link href="/pricing" className="transition-colors hover:text-white/45">
+              Pricing
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-white/45">
+              Terms
+            </Link>
+            <Link href="/privacy" className="transition-colors hover:text-white/45">
+              Privacy
+            </Link>
+            <Link href="/refunds" className="transition-colors hover:text-white/45">
+              Refunds
+            </Link>
             <Link href="/login" className="transition-colors hover:text-white/45">
               Log in
             </Link>

@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Activity,
   BarChart3,
   BookOpen,
+  Bot,
   Calendar,
   Camera,
   ChevronRight,
@@ -19,7 +21,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AppBrand } from "@/components/AppBrand";
-import { VoiceHoldButton } from "@/components/voice/VoiceHoldButton";
+import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { logout } from "@/lib/auth-client";
@@ -62,6 +64,8 @@ const menuSections: { title: string; items: MenuItem[] }[] = [
 ];
 
 export function Sidebars() {
+  const pathname = usePathname();
+  const coachActive = pathname.startsWith("/coach");
   const [profileOpen, setProfileOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const { data: session } = useSession();
@@ -110,7 +114,21 @@ export function Sidebars() {
             <AppBrand href="/dashboard" />
           </div>
           <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-            <VoiceHoldButton />
+            <Link
+              href="/coach"
+              aria-label="AI Coach"
+              aria-current={coachActive ? "page" : undefined}
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-xl border transition-transform duration-150 active:scale-90",
+                coachActive && "shadow-[0_0_14px_rgba(190,255,71,.25)]",
+              )}
+              style={{
+                borderColor: coachActive ? "rgba(190,255,71,.55)" : "var(--accent-border)",
+                background: coachActive ? "rgba(190,255,71,.18)" : "var(--accent-soft)",
+              }}
+            >
+              <Bot size={16} className="text-[#BEFF47]" />
+            </Link>
             <Link
               href="/meals/ai"
               aria-label="AI meal scan"

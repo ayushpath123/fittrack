@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { useHydrated } from "@/hooks/useHydrated";
 
 type SpeechRecognitionInstance = {
   continuous: boolean;
@@ -42,7 +43,8 @@ function errorMessage(code: string): string {
 }
 
 export function useSpeechRecognition() {
-  const [supported, setSupported] = useState(false);
+  const hydrated = useHydrated();
+  const supported = hydrated && !!getSpeechRecognition();
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [interim, setInterim] = useState("");
@@ -51,10 +53,6 @@ export function useSpeechRecognition() {
   const transcriptRef = useRef("");
   const interimRef = useRef("");
   const onErrorRef = useRef<((msg: string) => void) | null>(null);
-
-  useEffect(() => {
-    setSupported(!!getSpeechRecognition());
-  }, []);
 
   const setErrorHandler = useCallback((fn: ((msg: string) => void) | null) => {
     onErrorRef.current = fn;

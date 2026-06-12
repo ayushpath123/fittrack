@@ -18,7 +18,6 @@ export function buildHealthInsights(args: {
   const insights: HealthInsight[] = [];
   const {
     calorieTarget,
-    caloriesConsumed,
     caloriesConsumedWeekAvg,
     weightTrend7d,
     waistTrend7d,

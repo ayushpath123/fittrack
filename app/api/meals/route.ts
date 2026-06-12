@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUserIdFromRequest, StaleSessionError } from "@/lib/auth";
 import { mealPayloadSchema } from "@/lib/validators";
 import { createMealForDay, listMealsForDate } from "@/lib/domain/tracking";
-import { MealItem } from "@/types";
+import { trackEvent } from "@/lib/analytics";
 
 export async function GET(req: NextRequest) {
   const userId = await requireUserIdFromRequest(req);
@@ -36,5 +36,6 @@ export async function POST(req: NextRequest) {
   }
 
   const { entry } = result;
+  trackEvent("meal_logged", { userId, meta: { mealType } });
   return NextResponse.json(entry);
 }

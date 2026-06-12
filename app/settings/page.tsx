@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, Download, Upload } from "lucide-react";
-import { SettingsAppearance } from "@/components/SettingsAppearance";
+import { CancelSubscriptionDialog } from "@/components/settings/CancelSubscriptionDialog";
 import { LeaderboardIdentityCard } from "@/components/LeaderboardIdentityCard";
 import { SignOutButton } from "@/components/SignOutButton";
 import { numberToInputValue, parseIntegerInput, sanitizeNumericInput } from "@/lib/numeric-input";
@@ -40,11 +40,16 @@ export default function SettingsPage() {
     plan: string;
     hasPro: boolean;
     subscriptionStatus: string | null;
+    subscriptionCurrentPeriodEnd: string | null;
     canManageBilling: boolean;
+    canCancelSubscription: boolean;
+    cancelScheduled: boolean;
     phone: string | null;
     phoneVerified: boolean;
   } | null>(null);
   const [portalBusy, setPortalBusy] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [phoneInput, setPhoneInput] = useState("");
   const [otpInput, setOtpInput] = useState("");
   const [sendingOtp, setSendingOtp] = useState(false);
@@ -82,7 +87,10 @@ export default function SettingsPage() {
           plan?: string;
           hasPro?: boolean;
           subscriptionStatus?: string | null;
+          subscriptionCurrentPeriodEnd?: string | null;
           canManageBilling?: boolean;
+          canCancelSubscription?: boolean;
+          cancelScheduled?: boolean;
           phone?: string | null;
           phoneVerified?: boolean;
         }) => {
@@ -90,7 +98,10 @@ export default function SettingsPage() {
           plan: d.plan ?? "free",
           hasPro: !!d.hasPro,
           subscriptionStatus: d.subscriptionStatus ?? null,
+          subscriptionCurrentPeriodEnd: d.subscriptionCurrentPeriodEnd ?? null,
           canManageBilling: !!d.canManageBilling,
+          canCancelSubscription: !!d.canCancelSubscription,
+          cancelScheduled: !!d.cancelScheduled,
           phone: d.phone ?? null,
           phoneVerified: !!d.phoneVerified,
         });
@@ -109,7 +120,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (loading || typeof window === "undefined") return;
     const id = window.location.hash.replace(/^#/, "");
-    if (!id || !["appearance", "daily-targets", "reminders", "your-data", "import-backup"].includes(id)) return;
+    if (!id || !["daily-targets", "reminders", "your-data", "import-backup"].includes(id)) return;
     requestAnimationFrame(() => {
       document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
@@ -161,6 +172,42 @@ export default function SettingsPage() {
       setMessage("Export failed. Try again.");
     } finally {
       setExporting(null);
+    }
+  }
+
+  async function cancelSubscription() {
+    setCancelBusy(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/billing/cancel", { method: "POST", credentials: "include" });
+      const data = (await res.json()) as { cancelled?: boolean; cancelAtPeriodEnd?: boolean; accessUntil?: string | null; error?: string };
+      if (!res.ok || !data.cancelled) {
+        setMessage(data.error ?? "Could not cancel the subscription.");
+        return;
+      }
+      setBilling((prev) =>
+        prev
+          ? {
+              ...prev,
+              hasPro: data.cancelAtPeriodEnd ? prev.hasPro : false,
+              plan: data.cancelAtPeriodEnd ? prev.plan : "free",
+              subscriptionStatus: data.cancelAtPeriodEnd ? "cancel_scheduled" : "cancelled",
+              subscriptionCurrentPeriodEnd: data.accessUntil ?? prev.subscriptionCurrentPeriodEnd,
+              canCancelSubscription: false,
+              cancelScheduled: !!data.cancelAtPeriodEnd,
+            }
+          : prev,
+      );
+      setMessage(
+        data.cancelAtPeriodEnd
+          ? "Subscription cancelled — Pro stays active until the end of the billing period."
+          : "Subscription cancelled.",
+      );
+    } catch {
+      setMessage("Could not cancel the subscription.");
+    } finally {
+      setCancelBusy(false);
+      setCancelDialogOpen(false);
     }
   }
 
@@ -280,12 +327,6 @@ export default function SettingsPage() {
         <span className="text-gray-300 dark:text-slate-600" aria-hidden>
           ·
         </span>
-        <a href="#appearance" className="text-[#BEFF47] dark:text-[#B8E86A] font-medium hover:underline">
-          Theme
-        </a>
-        <span className="text-gray-300 dark:text-slate-600" aria-hidden>
-          ·
-        </span>
         <a href="#leaderboard" className="text-[#BEFF47] dark:text-[#B8E86A] font-medium hover:underline">
           Ranks
         </a>
@@ -328,9 +369,20 @@ export default function SettingsPage() {
               Current plan:{" "}
               <strong className="text-gray-900 dark:text-white">{billing.hasPro ? "Pro" : "Free"}</strong>
               {billing.subscriptionStatus ? (
-                <span className="text-gray-500 dark:text-slate-400"> — {billing.subscriptionStatus}</span>
+                <span className="text-gray-500 dark:text-slate-400">
+                  {" "}
+                  — {billing.subscriptionStatus === "cancel_scheduled" ? "cancellation scheduled" : billing.subscriptionStatus}
+                </span>
               ) : null}
             </p>
+            {billing.cancelScheduled ? (
+              <p className="rounded-xl border border-amber-400/35 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+                Your subscription won&rsquo;t renew.
+                {billing.subscriptionCurrentPeriodEnd
+                  ? ` Pro stays active until ${new Date(billing.subscriptionCurrentPeriodEnd).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}.`
+                  : " Pro stays active until the end of the billing period."}
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               {billing.hasPro && billing.canManageBilling ? (
                 <button
@@ -342,6 +394,16 @@ export default function SettingsPage() {
                   {portalBusy ? "Opening…" : "Manage billing"}
                 </button>
               ) : null}
+              {billing.canCancelSubscription ? (
+                <button
+                  type="button"
+                  disabled={cancelBusy}
+                  onClick={() => setCancelDialogOpen(true)}
+                  className="rounded-xl border border-[#FF5C7A]/40 bg-[#FF5C7A]/10 px-3 py-2 text-xs font-semibold text-[#FF5C7A] hover:bg-[#FF5C7A]/18 disabled:opacity-50"
+                >
+                  Cancel subscription
+                </button>
+              ) : null}
               {!billing.hasPro ? (
                 <a
                   href="/pricing"
@@ -351,6 +413,21 @@ export default function SettingsPage() {
                 </a>
               ) : null}
             </div>
+            <CancelSubscriptionDialog
+              open={cancelDialogOpen}
+              accessUntil={
+                billing.subscriptionCurrentPeriodEnd
+                  ? new Date(billing.subscriptionCurrentPeriodEnd).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })
+                  : null
+              }
+              busy={cancelBusy}
+              onClose={() => setCancelDialogOpen(false)}
+              onConfirm={() => void cancelSubscription()}
+            />
             {!billing.phoneVerified ? (
               <div className="space-y-2 rounded-xl border border-amber-400/35 bg-amber-400/10 p-3">
                 <p className="text-xs text-amber-200">
@@ -401,7 +478,12 @@ export default function SettingsPage() {
               <p className="text-xs text-emerald-400">Phone verified for billing: {billing.phone ?? "Saved"}</p>
             )}
             <p className="text-xs text-gray-500 dark:text-slate-500">
-              Pro unlocks AI meal estimates and the AI coach. Configure your billing keys in production.
+              Pro unlocks AI meal estimates and the AI coach. Cancellation stops future charges and keeps Pro until
+              the period ends — see the{" "}
+              <a href="/refunds" className="underline hover:text-gray-700 dark:hover:text-slate-300">
+                Refund Policy
+              </a>
+              .
             </p>
             {isAdmin ? (
               <a
@@ -416,7 +498,6 @@ export default function SettingsPage() {
           <p className="text-sm text-gray-500 dark:text-slate-400">Loading subscription…</p>
         )}
       </div>
-      <SettingsAppearance />
       <div id="leaderboard" className="scroll-mt-28">
         <LeaderboardIdentityCard />
       </div>

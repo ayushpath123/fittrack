@@ -11,6 +11,7 @@ type HeroSectionProps = {
   proteinTarget: number;
   streak: number;
   flameActive?: boolean;
+  streakAtRisk?: boolean;
 };
 
 export function HeroSection({
@@ -21,6 +22,7 @@ export function HeroSection({
   proteinTarget,
   streak,
   flameActive,
+  streakAtRisk,
 }: HeroSectionProps) {
   const caloriePct = Math.min(100, Math.round((caloriesConsumed / Math.max(1, calorieTarget)) * 100));
   const proteinPct = Math.min(100, Math.round((proteinConsumed / Math.max(1, proteinTarget)) * 100));
@@ -33,12 +35,20 @@ export function HeroSection({
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Today&apos;s journey</p>
           <h2 className="mt-1 truncate text-lg font-bold text-[var(--white)]">Daily Balance</h2>
-          <p className="mt-0.5 text-xs text-[var(--muted)]">
-            {caloriesBurned > 0 ? `${caloriesBurned} kcal burned from activity` : "Log a workout to track calories burned"}
+          <p className={`mt-0.5 text-xs ${streakAtRisk ? "font-medium text-amber-300" : "text-[var(--muted)]"}`}>
+            {streakAtRisk
+              ? `Log anything today to keep your ${streak}-day streak alive`
+              : caloriesBurned > 0
+                ? `${caloriesBurned} kcal burned from activity`
+                : "Log a workout to track calories burned"}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-orange-400/25 bg-orange-400/10 px-2.5 py-1.5">
-          <Flame size={14} className={`text-orange-400 ${flameActive ? "animate-fire-flicker" : ""}`} aria-hidden />
+        <div
+          className={`flex shrink-0 items-center gap-1.5 rounded-xl border px-2.5 py-1.5 ${
+            streakAtRisk ? "border-amber-400/50 bg-amber-400/15" : "border-orange-400/25 bg-orange-400/10"
+          }`}
+        >
+          <Flame size={14} className={`text-orange-400 ${flameActive || streakAtRisk ? "animate-fire-flicker" : ""}`} aria-hidden />
           <span className="num text-sm font-bold text-[var(--white)]">{streak}</span>
           <span className="text-[10px] text-[var(--muted)]">streak</span>
         </div>

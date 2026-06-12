@@ -936,7 +936,7 @@ export async function armFreezeMutation(userId: string, meta: RequestAuditMeta):
 /**
  * Spends one XP boost token for +30 coins.
  */
-export async function useXpBoostMutation(userId: string, meta: RequestAuditMeta): Promise<GamificationSummary> {
+export async function applyXpBoostMutation(userId: string, meta: RequestAuditMeta): Promise<GamificationSummary> {
   const rolling24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   await runGamificationTransaction(async (tx) => {

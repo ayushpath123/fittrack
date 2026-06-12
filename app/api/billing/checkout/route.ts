@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUserIdFromRequest } from "@/lib/auth";
 import { getRazorpay, getSubscriptionCheckoutConfig } from "@/lib/razorpay";
+import { trackEvent } from "@/lib/analytics";
 
 function normalizeIndianMobile(phone: string | null): string | undefined {
   if (!phone) return undefined;
@@ -69,6 +70,7 @@ export async function POST(req: NextRequest) {
         userId: user.id,
       },
     });
+    trackEvent("checkout_started", { userId: user.id });
 
     const prefillName = user.email.split("@")[0] || "Healthify User";
     const checkout = getSubscriptionCheckoutConfig({

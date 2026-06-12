@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Plus, Trash2, X } from "lucide-react";
+import { useHydrated } from "@/hooks/useHydrated";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { WorkoutTypeSelect } from "@/components/workout/WorkoutTypeSelect";
@@ -28,7 +29,7 @@ function emptyExercise(): TemplateExercise {
 }
 
 export function WorkoutTemplateFormModal({ open, initial, onClose, onSave }: WorkoutTemplateFormModalProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [workoutType, setWorkoutType] = useState<WorkoutTypeKind | "">("");
@@ -40,32 +41,38 @@ export function WorkoutTemplateFormModal({ open, initial, onClose, onSave }: Wor
   const [cardioType, setCardioType] = useState("");
   const [exercises, setExercises] = useState<TemplateExercise[]>([emptyExercise()]);
 
-  useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    if (!open) return;
-    if (initial) {
-      setName(initial.name);
-      setWorkoutType(initial.workoutType);
-      setDescription(initial.description ?? "");
-      setDuration(String(initial.duration));
-      setCalories(String(initial.caloriesBurned));
-      setIntensity(initial.intensityLevel ?? "medium");
-      setCategory(initial.category);
-      setCardioType(initial.cardioType ?? "");
-      setExercises(initial.exercises.length ? initial.exercises : [emptyExercise()]);
-    } else {
-      setName("");
-      setWorkoutType("");
-      setDescription("");
-      setDuration("45");
-      setCalories("400");
-      setIntensity("medium");
-      setCategory("strength");
-      setCardioType("");
-      setExercises([emptyExercise()]);
+  // Reset the form whenever the modal (re)opens or targets a different
+  // template (render-time adjustment instead of a cascading effect).
+  const [prevForm, setPrevForm] = useState<{ open: boolean; initial: WorkoutTemplateFormModalProps["initial"] }>({
+    open: false,
+    initial: undefined,
+  });
+  if (prevForm.open !== open || prevForm.initial !== initial) {
+    setPrevForm({ open, initial });
+    if (open) {
+      if (initial) {
+        setName(initial.name);
+        setWorkoutType(initial.workoutType);
+        setDescription(initial.description ?? "");
+        setDuration(String(initial.duration));
+        setCalories(String(initial.caloriesBurned));
+        setIntensity(initial.intensityLevel ?? "medium");
+        setCategory(initial.category);
+        setCardioType(initial.cardioType ?? "");
+        setExercises(initial.exercises.length ? initial.exercises : [emptyExercise()]);
+      } else {
+        setName("");
+        setWorkoutType("");
+        setDescription("");
+        setDuration("45");
+        setCalories("400");
+        setIntensity("medium");
+        setCategory("strength");
+        setCardioType("");
+        setExercises([emptyExercise()]);
+      }
     }
-  }, [open, initial]);
+  }
 
   useEffect(() => {
     if (!open) return;

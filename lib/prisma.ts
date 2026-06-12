@@ -4,7 +4,7 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 /** After `prisma generate`, dev can keep an old PrismaClient on globalThis without new model delegates. */
 function isStalePrismaClient(c: PrismaClient): boolean {
-  return typeof (c as unknown as { hydrationLog?: unknown }).hydrationLog !== "object";
+  return typeof (c as unknown as { analyticsEvent?: unknown }).analyticsEvent !== "object";
 }
 
 const existing = globalForPrisma.prisma;

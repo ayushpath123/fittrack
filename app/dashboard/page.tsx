@@ -42,7 +42,7 @@ export default async function DashboardPage({
   const prevMonthEnd = getDaysAgo(30);
   const since90 = getDaysAgo(90);
 
-  const [
+  const [[
     meals,
     goals,
     hydrationToday,
@@ -56,8 +56,9 @@ export default async function DashboardPage({
     recentWeightsT,
     meals7d,
     monthMeals,
-  ] = await withPrismaRetry(() =>
-    Promise.all([
+  ]] = await Promise.all([
+    withPrismaRetry(() =>
+      Promise.all([
       prisma.mealEntry.findMany({ where: { userId, date: { gte: dayStart, lte: endOfDay(today) } } }),
       prisma.goalSetting.findUnique({ where: { userId } }),
       prisma.hydrationLog.findUnique({ where: { userId_date: { userId, date: dayStart } } }),
@@ -108,8 +109,11 @@ export default async function DashboardPage({
         where: { userId, date: { gte: monthStart } },
         select: { totalCalories: true },
       }),
-    ]),
-  );
+      ]),
+    ),
+    // Seed built-in templates concurrently; must finish before listWorkoutTemplatesForUser below.
+    ensureDefaultWorkoutTemplates(userId),
+  ]);
 
   if (!goals) redirect("/onboarding");
 
@@ -138,8 +142,6 @@ export default async function DashboardPage({
   const waterMl = hydrationToday?.totalMl ?? 0;
   const waterGoalMl = goals.waterTargetMl ?? 2000;
   const waterPct = Math.min(100, Math.round((waterMl / waterGoalMl) * 100));
-
-  await ensureDefaultWorkoutTemplates(userId);
 
   const [todayWorkoutLogs, workoutSummaryToday, workoutSummaryWeek, workoutTemplates, workoutHistoryForSuggest] =
     await withPrismaRetry(() =>
@@ -197,6 +199,13 @@ export default async function DashboardPage({
 
   const xpEarnedToday = gamification.quests.filter((q) => q.completed).reduce((s, q) => s + q.rewardXp, 0);
   const personalRecords: DashboardPayload["personalRecords"] = [];
+
+  let activeDaysLast7 = 0;
+  for (let i = 0; i < 7; i++) {
+    const key = toLocalDateKey(getDaysAgo(i));
+    if (mealDays.has(key) || workoutDays.has(key) || weightDays.has(key)) activeDaysLast7 += 1;
+  }
+  const weeklyConsistencyPct = Math.round((activeDaysLast7 / 7) * 100);
 
   const timeline = buildDashboardTimeline(recentMealsT, recentWorkoutsT, recentWeightsT, {
     xpEarnedToday,
@@ -269,6 +278,8 @@ export default async function DashboardPage({
       badges: gamification.badges,
       level: gamification.level,
       rank: gamification.rank,
+      xp: gamification.xp,
+      weeklyConsistencyPct,
       weeklyGoalProgress: gamification.weeklyGoalProgress,
       weeklyGoalTarget: gamification.weeklyGoalTarget,
       xpEarnedToday,

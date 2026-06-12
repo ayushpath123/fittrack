@@ -21,7 +21,7 @@ export function WorkoutCaloriesChart({ data }: WorkoutCaloriesChartProps) {
       </div>
       <div className="premium-card rounded-[var(--radius-card)] p-2.5 !shadow-none hover:!shadow-none">
         <div className="h-[104px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={104} initialDimension={{ width: 360, height: 104 }}>
             <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
               <XAxis
                 dataKey="label"

@@ -56,3 +56,27 @@ export async function sendResetPasswordEmail(to: string, resetUrl: string) {
      <p>This link expires in 30 minutes. If you did not request this, you can ignore this email.</p>`
   );
 }
+
+export async function sendPaymentRetryingEmail(to: string, manageUrl: string) {
+  await sendMail(
+    to,
+    "Action needed: your FitTrack Pro payment failed",
+    `<p>We couldn't collect your latest FitTrack Pro renewal payment.</p>
+     <p>Razorpay will retry automatically over the next few days. To keep Pro uninterrupted, make sure your
+     UPI mandate or card has sufficient balance and is still active.</p>
+     <p>You can check your subscription here:</p>
+     <p><a href="${manageUrl}">${manageUrl}</a></p>
+     <p>If the retries fail, your account will move back to the free plan.</p>`
+  );
+}
+
+export async function sendSubscriptionHaltedEmail(to: string, resubscribeUrl: string) {
+  await sendMail(
+    to,
+    "Your FitTrack Pro subscription is paused",
+    `<p>We tried several times but couldn't collect your FitTrack Pro renewal payment, so your subscription is
+     paused and your account is back on the free plan.</p>
+     <p>Your logged data is safe. To get Pro features back, you can resubscribe anytime:</p>
+     <p><a href="${resubscribeUrl}">${resubscribeUrl}</a></p>`
+  );
+}

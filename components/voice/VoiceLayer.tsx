@@ -3,16 +3,19 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
+import { VoiceRecordingOverlay } from "@/components/voice/VoiceRecordingOverlay";
 import { useAudioRecorder } from "@/components/voice/useAudioRecorder";
 import { notifyLogsUpdated } from "@/lib/fittrack-events";
+import { useHydrated } from "@/hooks/useHydrated";
 
 type ProStatus = "loading" | "pro" | "free";
 type VoicePhase = "idle" | "preparing" | "recording" | "transcribing" | "processing" | "logging";
 
 const STATUS_TOAST_ID = "voice-pipeline";
 const RESULT_VISIBLE_MS = 12_000;
+const OVERLAY_RESULT_MS = 2_800;
 
 type VoiceResult = { tone: "success" | "error"; message: string };
 
@@ -20,6 +23,12 @@ type VoiceContextValue = {
   phase: VoicePhase;
   statusText: string;
   proStatus: ProStatus;
+  overlayOpen: boolean;
+  result: VoiceResult | null;
+  recordingStartedAt: number | null;
+  openVoiceOverlay: () => void;
+  closeVoiceOverlay: () => void;
+  cancelVoice: () => void;
   onMicPress: () => void;
 };
 
@@ -53,74 +62,38 @@ function parseApiError(res: Response, data: { error?: string; message?: string }
 
 function VoiceBanner({
   phase,
-  statusText,
   result,
 }: {
   phase: VoicePhase;
-  statusText: string;
   result: VoiceResult | null;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
 
-  const visible = phase !== "idle" || result !== null;
-  if (!mounted || !visible) return null;
-
-  if (result && phase === "idle") {
-    return createPortal(
-      <div className="pointer-events-none fixed inset-x-0 top-[var(--app-header-h)] z-[85] flex justify-center px-3.5 pt-2">
-        <div
-          className={`w-full max-w-md rounded-2xl border px-4 py-3 shadow-lg backdrop-blur-xl ${
-            result.tone === "success"
-              ? "border-[rgba(190,255,71,.45)] bg-[rgba(12,14,22,.98)]"
-              : "border-[rgba(255,125,149,.45)] bg-[rgba(12,14,22,.98)]"
-          }`}
-        >
-          <div className="flex items-start gap-2.5">
-            {result.tone === "success" ? (
-              <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-[#BEFF47]" />
-            ) : (
-              <XCircle size={18} className="mt-0.5 shrink-0 text-[#ff7d95]" />
-            )}
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                {result.tone === "success" ? "Logged" : "Could not log"}
-              </p>
-              <p className="mt-0.5 text-sm text-[var(--white)]">{result.message}</p>
-            </div>
-          </div>
-        </div>
-      </div>,
-      document.body,
-    );
-  }
-
-  const label =
-    phase === "preparing"
-      ? "Preparing…"
-      : phase === "recording"
-        ? "Recording — tap mic when done"
-        : phase === "transcribing"
-          ? "Transcribing…"
-          : phase === "processing"
-            ? "Understanding…"
-            : "Logging…";
+  const visible = result !== null && phase === "idle";
+  if (!mounted || !visible || !result) return null;
 
   return createPortal(
     <div className="pointer-events-none fixed inset-x-0 top-[var(--app-header-h)] z-[85] flex justify-center px-3.5 pt-2">
-      <div className="w-full max-w-md rounded-2xl border border-[rgba(190,255,71,.25)] bg-[rgba(12,14,22,.98)] px-4 py-3 shadow-lg backdrop-blur-xl">
-        <div className="mb-1.5 flex items-center gap-2">
-          {phase === "recording" ? (
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#BEFF47] opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#BEFF47]" />
-            </span>
+      <div
+        className={`w-full max-w-md rounded-2xl border px-4 py-3 shadow-lg backdrop-blur-xl ${
+          result.tone === "success"
+            ? "border-[rgba(190,255,71,.45)] bg-[rgba(12,14,22,.98)]"
+            : "border-[rgba(255,125,149,.45)] bg-[rgba(12,14,22,.98)]"
+        }`}
+      >
+        <div className="flex items-start gap-2.5">
+          {result.tone === "success" ? (
+            <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-[#BEFF47]" />
           ) : (
-            <Loader2 size={14} className="animate-spin text-[#BEFF47]" />
+            <XCircle size={18} className="mt-0.5 shrink-0 text-[#ff7d95]" />
           )}
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[#BEFF47]">{label}</span>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+              {result.tone === "success" ? "Logged" : "Could not log"}
+            </p>
+            <p className="mt-0.5 text-sm text-[var(--white)]">{result.message}</p>
+          </div>
         </div>
-        <p className="line-clamp-4 text-sm text-[var(--white)]">{statusText}</p>
       </div>
     </div>,
     document.body,
@@ -134,11 +107,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const proStatusRef = useRef<ProStatus>("loading");
   const [phase, setPhase] = useState<VoicePhase>("idle");
   const phaseRef = useRef<VoicePhase>("idle");
-  const [statusText, setStatusText] = useState("Tap mic to start");
+  const [statusText, setStatusText] = useState("Tap the mic to start recording");
   const [result, setResult] = useState<VoiceResult | null>(null);
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const overlayOpenRef = useRef(false);
+  const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const pipelineBusyRef = useRef(false);
   const maxDurationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const overlayCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelRecordingRef = useRef(recorder.cancel);
   cancelRecordingRef.current = recorder.cancel;
 
@@ -147,32 +124,102 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     setPhase(next);
   }, []);
 
+  const setOverlay = useCallback((open: boolean) => {
+    overlayOpenRef.current = open;
+    setOverlayOpen(open);
+  }, []);
+
   const resetIdle = useCallback(() => {
     setVoicePhase("idle");
-    setStatusText("Tap mic to start");
+    setStatusText("Tap the mic to start recording");
+    setRecordingStartedAt(null);
   }, [setVoicePhase]);
 
-  const showResult = useCallback((tone: VoiceResult["tone"], message: string) => {
-    setResult({ tone, message });
-    if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
-    resultTimerRef.current = setTimeout(() => setResult(null), RESULT_VISIBLE_MS);
-
-    if (tone === "success") {
-      toast.success(message, { id: STATUS_TOAST_ID, duration: RESULT_VISIBLE_MS });
-    } else {
-      toast.error(message, { id: STATUS_TOAST_ID, duration: RESULT_VISIBLE_MS });
-    }
+  const dismissStatusToast = useCallback(() => {
+    toast.dismiss(STATUS_TOAST_ID);
   }, []);
+
+  const scheduleOverlayClose = useCallback(() => {
+    if (overlayCloseTimerRef.current) clearTimeout(overlayCloseTimerRef.current);
+    overlayCloseTimerRef.current = setTimeout(() => {
+      setOverlay(false);
+      setResult(null);
+    }, OVERLAY_RESULT_MS);
+  }, [setOverlay]);
+
+  const showResult = useCallback(
+    (tone: VoiceResult["tone"], message: string) => {
+      setResult({ tone, message });
+      if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = setTimeout(() => {
+        if (!overlayOpenRef.current) setResult(null);
+      }, RESULT_VISIBLE_MS);
+
+      dismissStatusToast();
+
+      if (overlayOpenRef.current) {
+        scheduleOverlayClose();
+        return;
+      }
+
+      if (tone === "success") {
+        toast.success(message, { id: STATUS_TOAST_ID, duration: RESULT_VISIBLE_MS });
+      } else {
+        toast.error(message, { id: STATUS_TOAST_ID, duration: RESULT_VISIBLE_MS });
+      }
+    },
+    [dismissStatusToast, scheduleOverlayClose],
+  );
 
   const setProgress = useCallback(
     (nextPhase: VoicePhase, text: string) => {
       setResult(null);
       setVoicePhase(nextPhase);
       setStatusText(text);
-      toast.loading(text, { id: STATUS_TOAST_ID, duration: Infinity });
+      if (!overlayOpenRef.current) {
+        toast.loading(text, { id: STATUS_TOAST_ID, duration: Infinity });
+      }
     },
     [setVoicePhase],
   );
+
+  const openVoiceOverlay = useCallback(() => {
+    setOverlay(true);
+    dismissStatusToast();
+  }, [dismissStatusToast, setOverlay]);
+
+  const closeVoiceOverlay = useCallback(() => {
+    if (phaseRef.current !== "idle" || pipelineBusyRef.current) return;
+    setOverlay(false);
+    setResult(null);
+  }, [setOverlay]);
+
+  const cancelVoice = useCallback(() => {
+    if (
+      phaseRef.current === "transcribing" ||
+      phaseRef.current === "processing" ||
+      phaseRef.current === "logging" ||
+      phaseRef.current === "preparing"
+    ) {
+      return;
+    }
+
+    if (phaseRef.current === "recording" || recorder.recording) {
+      recorder.cancel();
+    }
+
+    pipelineBusyRef.current = false;
+    if (maxDurationRef.current) {
+      clearTimeout(maxDurationRef.current);
+      maxDurationRef.current = null;
+    }
+    if (overlayCloseTimerRef.current) clearTimeout(overlayCloseTimerRef.current);
+
+    dismissStatusToast();
+    resetIdle();
+    setResult(null);
+    setOverlay(false);
+  }, [dismissStatusToast, recorder, resetIdle, setOverlay]);
 
   useEffect(() => {
     if (sessionStatus === "loading") return;
@@ -191,6 +238,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (maxDurationRef.current) clearTimeout(maxDurationRef.current);
       if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+      if (overlayCloseTimerRef.current) clearTimeout(overlayCloseTimerRef.current);
       cancelRecordingRef.current();
     };
   }, []);
@@ -262,11 +310,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (phaseRef.current !== "recording" && !recorder.recording) {
-      showResult("error", "Not recording — tap mic to start.");
+      showResult("error", "Not recording — tap the mic to start.");
       return;
     }
 
     pipelineBusyRef.current = true;
+    setRecordingStartedAt(null);
     setProgress("transcribing", "Stopping recording…");
 
     try {
@@ -278,17 +327,17 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (audio.durationMs < 700) {
-        showResult("error", "Too short — speak at least 1 second before tapping mic again.");
+        showResult("error", "Too short — speak at least 1 second before tapping again.");
         return;
       }
 
-      const result = await runVoicePipeline(audio.blob);
-      if ("error" in result) {
-        showResult("error", result.error);
+      const pipelineResult = await runVoicePipeline(audio.blob);
+      if ("error" in pipelineResult) {
+        showResult("error", pipelineResult.error);
         return;
       }
 
-      showResult("success", result.message);
+      showResult("success", pipelineResult.message);
     } catch (err) {
       console.error("[voice] pipeline error", err);
       showResult("error", "Something went wrong — please try again.");
@@ -296,7 +345,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       pipelineBusyRef.current = false;
       resetIdle();
     }
-  }, [recorder, resetIdle, runVoicePipeline, showResult]);
+  }, [recorder, resetIdle, runVoicePipeline, showResult, setProgress]);
 
   const startRecording = useCallback(async () => {
     if (pipelineBusyRef.current) return;
@@ -323,9 +372,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       }
 
       recordingStarted = true;
+      setRecordingStartedAt(Date.now());
       setVoicePhase("recording");
-      setStatusText("Speak now — tap mic when done");
-      toast("Recording — tap mic when finished", { id: STATUS_TOAST_ID, duration: Infinity });
+      setStatusText("Speak now — tap the mic again when you're done");
     } catch (err) {
       console.error("[voice] start error", err);
       showResult("error", "Could not start recording.");
@@ -353,11 +402,18 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         phase,
         statusText,
         proStatus,
+        overlayOpen,
+        result,
+        recordingStartedAt,
+        openVoiceOverlay,
+        closeVoiceOverlay,
+        cancelVoice,
         onMicPress,
       }}
     >
       {children}
-      <VoiceBanner phase={phase} statusText={statusText} result={result} />
+      <VoiceRecordingOverlay />
+      <VoiceBanner phase={phase} result={result} />
     </VoiceContext.Provider>
   );
 }

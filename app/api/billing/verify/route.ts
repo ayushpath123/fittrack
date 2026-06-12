@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUserIdFromRequest } from "@/lib/auth";
 import { getRazorpay, isValidRazorpaySubscriptionSignature } from "@/lib/razorpay";
+import { trackEvent } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 
@@ -45,6 +46,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    if (active) {
+      trackEvent("subscription_activated", { userId, meta: { source: "verify", status: subscription.status } });
+    }
     return NextResponse.json({ verified: true, hasPro: active });
   } catch (e) {
     if (e instanceof Error && e.message === "Unauthorized") {

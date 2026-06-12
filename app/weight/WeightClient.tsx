@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
 import { EmptyState } from "@/components/EmptyState";
 import { SectionHeader } from "@/components/SectionHeader";
@@ -24,11 +24,13 @@ export function WeightClient({ initialLogs }: { initialLogs: WeightLogType[] }) 
   const [range, setRange] = useState<"7d" | "30d" | "90d">("30d");
   const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (searchParams.get("action") === "log") {
-      setModalOpen(true);
-    }
-  }, [searchParams]);
+  // Open the log modal when arriving via ?action=log (render-time adjustment).
+  const action = searchParams.get("action");
+  const [prevAction, setPrevAction] = useState<string | null>(null);
+  if (action !== prevAction) {
+    setPrevAction(action);
+    if (action === "log") setModalOpen(true);
+  }
 
   const analytics = computeWeightAnalytics(logs);
   const sliceCount = range === "7d" ? 7 : range === "30d" ? 30 : 90;

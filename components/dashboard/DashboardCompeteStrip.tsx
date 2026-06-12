@@ -28,7 +28,7 @@ export function DashboardCompeteStrip({ data }: { data: CompeteStripPayload }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-      className="mb-4 overflow-hidden rounded-2xl border border-white/[0.1] bg-[linear-gradient(110deg,rgba(190,255,71,.09)_0%,rgba(87,180,255,.06)_55%,rgba(167,139,250,.05)_100%)] shadow-[0_12px_40px_rgba(0,0,0,.28)] transition-[border-color,box-shadow] hover:border-[rgba(190,255,71,.22)] hover:shadow-[0_14px_44px_rgba(0,0,0,.34)]"
+      className="overflow-hidden rounded-2xl border border-white/[0.1] bg-[linear-gradient(110deg,rgba(190,255,71,.09)_0%,rgba(87,180,255,.06)_55%,rgba(167,139,250,.05)_100%)] shadow-[0_12px_40px_rgba(0,0,0,.28)] transition-[border-color,box-shadow] hover:border-[rgba(190,255,71,.22)] hover:shadow-[0_14px_44px_rgba(0,0,0,.34)]"
     >
       <Link href="/game" className="group flex items-center justify-between gap-2 p-3 transition-colors hover:bg-white/[0.03]">
         <div className="flex min-w-0 items-center gap-2">

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Dumbbell, Plus, Scale, Utensils, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useHydrated } from "@/hooks/useHydrated";
 
 const linkActions = [
   { href: "/meals?action=add", label: "Log Meal", icon: Utensils, color: "text-[#BEFF47]", ring: "rgba(190,255,71,.35)" },
@@ -23,11 +24,7 @@ const fabPositionStyle = {
 
 export function FloatingQuickActions() {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useHydrated();
 
   const fab = (
     <div

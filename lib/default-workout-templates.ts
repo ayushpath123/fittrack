@@ -222,22 +222,37 @@ export function getBuiltinTemplateByType(workoutType: WorkoutTypeKind): BuiltinT
   return STRENGTH_TEMPLATES.find((t) => t.workoutType === workoutType);
 }
 
-/** Seeds built-in templates; syncs duration and calories with canonical defaults. */
+/** Seeds built-in templates; syncs duration and calories with canonical defaults.
+ * Steady state is a single read — writes only happen for brand-new users or when
+ * the canonical defaults above change. */
 export async function ensureDefaultWorkoutTemplates(userId: string): Promise<void> {
-  for (const template of ALL_BUILTIN_TEMPLATES) {
-    const { builtinKey, exercises, ...rest } = template;
-    await prisma.workoutTemplate.upsert({
-      where: { userId_builtinKey: { userId, builtinKey } },
-      create: {
+  const existing = await prisma.workoutTemplate.findMany({
+    where: { userId, builtinKey: { in: ALL_BUILTIN_TEMPLATES.map((t) => t.builtinKey) } },
+    select: { builtinKey: true, duration: true, caloriesBurned: true },
+  });
+  const byKey = new Map(existing.map((t) => [t.builtinKey, t]));
+
+  const missing = ALL_BUILTIN_TEMPLATES.filter((t) => !byKey.has(t.builtinKey));
+  if (missing.length) {
+    await prisma.workoutTemplate.createMany({
+      data: missing.map(({ builtinKey, exercises, ...rest }) => ({
         userId,
         builtinKey,
         exercises: exercises as object,
         ...rest,
-      },
-      update: {
-        duration: rest.duration,
-        caloriesBurned: rest.caloriesBurned,
-      },
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  const outOfSync = ALL_BUILTIN_TEMPLATES.filter((t) => {
+    const current = byKey.get(t.builtinKey);
+    return current && (current.duration !== t.duration || current.caloriesBurned !== t.caloriesBurned);
+  });
+  for (const t of outOfSync) {
+    await prisma.workoutTemplate.update({
+      where: { userId_builtinKey: { userId, builtinKey: t.builtinKey } },
+      data: { duration: t.duration, caloriesBurned: t.caloriesBurned },
     });
   }
 }

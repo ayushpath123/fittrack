@@ -208,6 +208,7 @@ model User {
   otpCodes OtpCode[]
   weeklyReports WeeklyReport[]
   llmCallLogs LlmCallLog[]
+  analyticsEvents AnalyticsEvent[]
   leaderboardAlias    String?
   leaderboardPublic   Boolean            @default(false)
   leaderboardEntries  LeaderboardEntry[]
@@ -423,4 +424,16 @@ model LlmCallLog {
 
   @@index([userId, createdAt])
   @@index([createdAt])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String?
+  meta      Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([name, createdAt])
+  @@index([userId, createdAt])
 }

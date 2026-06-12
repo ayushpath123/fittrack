@@ -15,7 +15,6 @@ import type { MealType } from "@/types/meal-template";
 import type {
   ExtractedEntity,
   VoiceDraftItem,
-  VoiceLogPayload,
   VoiceProcessResult,
 } from "@/lib/voice/types";
 

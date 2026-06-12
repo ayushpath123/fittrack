@@ -170,7 +170,7 @@ export async function confirmVoiceLogs(
   date?: string,
 ): Promise<VoiceConfirmResult> {
   const logged: VoiceConfirmResult["logged"] = [];
-  let totalMacros = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  const totalMacros = { calories: 0, protein: 0, carbs: 0, fat: 0 };
   let hydrationMl = 0;
 
   for (const item of items) {

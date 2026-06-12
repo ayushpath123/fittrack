@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/Button";
+import { useHydrated } from "@/hooks/useHydrated";
 
 type DeleteWorkoutDialogProps = {
   open: boolean;
@@ -12,11 +13,7 @@ type DeleteWorkoutDialogProps = {
 };
 
 export function DeleteWorkoutDialog({ open, isDeleting, onCancel, onConfirm }: DeleteWorkoutDialogProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useHydrated();
 
   useEffect(() => {
     if (!open) return;
